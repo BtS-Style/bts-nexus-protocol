@@ -1,0 +1,196 @@
+<!DOCTYPE html>
+<html lang="cs">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>BTS Network | Nexus</title>
+    <!-- Tailwind CSS pro moderní UI -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Firebase SDK pro real-time data -->
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.1.0/firebase-app.js";
+        import { getAuth, onAuthStateChanged, signOut, signInWithEmailAndPassword, createUserWithEmailAndPassword, updateProfile } from "https://www.gstatic.com/firebasejs/11.1.0/firebase-auth.js";
+        import { getFirestore, collection, addDoc, onSnapshot, query, orderBy, doc, updateDoc, increment, setDoc } from "https://www.gstatic.com/firebasejs/11.1.0/firebase-firestore.js";
+
+        // Konfigurace se automaticky načte z prostředí
+        const firebaseConfig = JSON.parse(window.__firebase_config || '{}');
+        const app = initializeApp(firebaseConfig);
+        const auth = getAuth(app);
+        const db = getFirestore(app);
+        const appId = "bts-network-final";
+
+        let currentUser = null;
+
+        // UI Elementy
+        const authScreen = document.getElementById('auth-screen');
+        const appScreen = document.getElementById('app-screen');
+        const nexusContainer = document.getElementById('nexus-container');
+        const mainInput = document.getElementById('main-input');
+
+        // Sledování stavu přihlášení
+        onAuthStateChanged(auth, (user) => {
+            if (user) {
+                currentUser = user;
+                authScreen.classList.add('hidden');
+                appScreen.classList.remove('hidden');
+                initNexus();
+            } else {
+                authScreen.classList.remove('hidden');
+                appScreen.classList.add('hidden');
+            }
+        });
+
+        // Načítání zpráv v reálném čase (Nexus Chat)
+        function initNexus() {
+            const q = collection(db, 'artifacts', appId, 'users', currentUser.uid, 'nexus');
+            onSnapshot(q, (snap) => {
+                nexusContainer.innerHTML = '';
+                let msgs = [];
+                snap.forEach(d => msgs.push({id: d.id, ...d.data()}));
+                msgs.sort((a,b) => a.createdAt - b.createdAt).forEach(m => {
+                    const div = document.createElement('div');
+                    div.className = `flex ${m.role === 'user' ? 'justify-end' : 'justify-start'} mb-4`;
+                    div.innerHTML = `
+                        <div class="max-w-[80%] p-4 rounded-[1.8rem] text-sm ${m.role === 'user' ? 'bg-[#2563eb] text-white rounded-br-none shadow-lg shadow-blue-500/10' : 'bg-[#1a1a1e] border border-white/5 rounded-bl-none text-gray-300'}">
+                            ${m.text}
+                        </div>
+                    `;
+                    nexusContainer.appendChild(div);
+                });
+                nexusContainer.scrollTop = nexusContainer.scrollHeight;
+            }, (error) => console.error("Firestore error:", error));
+        }
+
+        // Odeslání zprávy
+        window.sendMessage = async () => {
+            const text = mainInput.value.trim();
+            if (!text) return;
+            const ref = collection(db, 'artifacts', appId, 'users', currentUser.uid, 'nexus');
+            await addDoc(ref, { 
+                text, 
+                role: 'user', 
+                createdAt: Date.now() 
+            });
+            mainInput.value = '';
+        };
+
+        // Obsluha souborů (vizuální trigger)
+        window.triggerUpload = () => document.getElementById('file-input').click();
+
+        // Autentizace (Přihlášení / Registrace)
+        window.handleAuth = async (e) => {
+            e.preventDefault();
+            const email = document.getElementById('email').value;
+            const pass = document.getElementById('pass').value;
+            try {
+                await signInWithEmailAndPassword(auth, email, pass);
+            } catch (err) { 
+                try {
+                    const cred = await createUserWithEmailAndPassword(auth, email, pass);
+                    await updateProfile(cred.user, { displayName: "Architect" });
+                } catch (e2) { alert("Chyba: " + e2.message); }
+            }
+        };
+
+        window.logout = () => signOut(auth);
+
+    </script>
+    <style>
+        body { background: #050507; color: #f3f4f6; -webkit-tap-highlight-color: transparent; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; }
+        .no-scrollbar::-webkit-scrollbar { width: 0; }
+        .glass-header { background: rgba(5, 5, 7, 0.8); backdrop-filter: blur(20px); border-bottom: 1px solid rgba(255,255,255,0.05); }
+        .input-glow { box-shadow: 0 4px 24px rgba(0, 0, 0, 0.4), 0 0 20px rgba(37, 99, 235, 0.1); }
+        @keyframes pulse-soft { 0%, 100% { opacity: 1; } 50% { opacity: 0.5; } }
+        .status-pulse { animation: pulse-soft 2s infinite; }
+    </style>
+</head>
+<body class="antialiased overflow-hidden">
+
+    <!-- PŘIHLAŠOVACÍ OBRAZOVKA -->
+    <div id="auth-screen" class="h-screen flex flex-col items-center justify-center p-8 text-center">
+        <div class="w-16 h-16 bg-blue-600 rounded-2xl mb-6 flex items-center justify-center shadow-2xl shadow-blue-600/30">
+            <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M9 9h6v6H9z"/></svg>
+        </div>
+        <h1 class="text-3xl font-black uppercase italic tracking-tighter text-white">BTS NETWORK</h1>
+        <p class="text-[10px] text-gray-500 uppercase tracking-[0.4em] mt-2">Evolution Protocol</p>
+        
+        <form onsubmit="handleAuth(event)" class="mt-10 w-full max-w-xs space-y-3">
+            <input id="email" type="email" placeholder="E-mail" class="w-full bg-[#111114] border border-white/5 rounded-2xl py-4 px-6 text-sm outline-none focus:border-blue-500 transition-all text-white">
+            <input id="pass" type="password" placeholder="Heslo" class="w-full bg-[#111114] border border-white/5 rounded-2xl py-4 px-6 text-sm outline-none focus:border-blue-500 transition-all text-white">
+            <button type="submit" class="w-full bg-blue-600 py-4 rounded-2xl font-bold uppercase text-[10px] tracking-widest text-white shadow-lg shadow-blue-600/20 active:scale-95 transition-all">Vstoupit do Nexus</button>
+        </form>
+    </div>
+
+    <!-- HLAVNÍ APLIKACE -->
+    <div id="app-screen" class="hidden h-screen flex flex-col max-w-md mx-auto relative bg-[#050507]">
+        
+        <!-- Horní Lišta (BTS Genesis) -->
+        <header class="glass-header p-5 flex items-center justify-between z-50">
+            <div class="flex items-center gap-3">
+                <div class="w-10 h-10 bg-[#1a1a1e] rounded-xl flex items-center justify-center border border-white/5">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#2563eb" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
+                </div>
+                <div>
+                    <h2 class="text-[11px] font-black uppercase italic tracking-widest text-white">BTS GENESIS</h2>
+                    <div class="flex items-center gap-1.5">
+                        <span class="w-1.5 h-1.5 bg-green-500 rounded-full status-pulse"></span>
+                        <span class="text-[8px] font-bold text-gray-500 uppercase tracking-tighter">Synchronizováno</span>
+                    </div>
+                </div>
+            </div>
+            <div onclick="logout()" class="w-9 h-9 rounded-full bg-blue-600/10 flex items-center justify-center border border-blue-500/20 cursor-pointer">
+                <span class="text-[9px] font-bold text-blue-500">BTS</span>
+            </div>
+        </header>
+
+        <!-- Oblast Chatu -->
+        <main id="nexus-container" class="flex-grow overflow-y-auto no-scrollbar p-6 space-y-4 pb-36">
+            <!-- Zde se dynamicky zobrazují zprávy -->
+        </main>
+
+        <!-- Plovoucí Vstupní Panel (Input Dock) -->
+        <div class="absolute bottom-6 left-4 right-4 z-50">
+            <div class="bg-[#121216]/95 border border-white/10 p-2 rounded-[2.5rem] flex items-center gap-2 input-glow backdrop-blur-2xl">
+                
+                <!-- Tlačítko PLUS (+) -->
+                <button onclick="triggerUpload()" class="w-12 h-12 rounded-full bg-white/5 flex items-center justify-center text-gray-400 hover:text-white hover:bg-white/10 transition-all active:scale-90">
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+                </button>
+                <input type="file" id="file-input" class="hidden" accept=".pdf,.jpg,.png,.mp3,.mp4,.txt">
+
+                <!-- Pole pro text -->
+                <input id="main-input" type="text" placeholder="Pojďme společně psát..." 
+                       class="flex-grow bg-transparent text-[15px] outline-none text-gray-200 px-2"
+                       onkeypress="if(event.key === 'Enter') sendMessage()">
+                
+                <!-- Ikona Mikrofonu -->
+                <button class="text-gray-500 p-2 hover:text-blue-500 transition-colors">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="23"/><line x1="8" y1="23" x2="16" y2="23"/></svg>
+                </button>
+
+                <!-- Tlačítko Odeslat -->
+                <button onclick="sendMessage()" class="w-12 h-12 rounded-full bg-blue-600 flex items-center justify-center text-white shadow-lg shadow-blue-600/30 active:scale-90 transition-all">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" class="rotate-45 -mt-0.5 -mr-0.5"><line x1="22" y1="2" x2="11" y2="13"></line><polygon points="22 2 15 22 11 13 2 9 22 2"></polygon></svg>
+                </button>
+            </div>
+        </div>
+
+        <!-- Spodní Navigační Lišta -->
+        <nav class="h-20 border-t border-white/5 flex justify-around items-center px-10 bg-[#050507] shrink-0">
+            <button class="text-blue-500 flex flex-col items-center gap-1">
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
+            </button>
+            <button class="text-gray-600 hover:text-gray-400 transition-colors">
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+            </button>
+            <button class="text-gray-600 hover:text-gray-400 transition-colors">
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 20v-8m0 0V4m0 8h8m-8 0H4"/></svg>
+            </button>
+            <button class="text-gray-600 hover:text-gray-400 transition-colors">
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+            </button>
+        </nav>
+    </div>
+
+</body>
+</html>
