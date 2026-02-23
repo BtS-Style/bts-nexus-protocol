@@ -2,294 +2,319 @@
 <html lang="cs">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>BTS Network | Architect Core</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>BTS AIOS v3.0 - Nexus Terminal</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    
-    <style>
-        :root {
-            --bts-blue: #2563eb;
-            --bts-bg: #050507;
-        }
-        body { 
-            background: var(--bts-bg); 
-            color: #f3f4f6; 
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; 
-            margin: 0;
-            height: 100vh;
-            overflow: hidden;
-        }
-        .no-scrollbar::-webkit-scrollbar { width: 0; display: none; }
-        .glass-header { background: rgba(5, 5, 7, 0.85); backdrop-filter: blur(25px); border-bottom: 1px solid rgba(255,255,255,0.06); }
-        .input-glow { box-shadow: 0 4px 24px rgba(0, 0, 0, 0.5), 0 0 20px rgba(37, 99, 235, 0.15); }
-        @keyframes pulse-soft { 0%, 100% { opacity: 1; transform: scale(1); } 50% { opacity: 0.6; transform: scale(0.95); } }
-        .status-pulse { animation: pulse-soft 2s infinite; }
-        .message-anim { animation: slideUp 0.3s ease-out; }
-        @keyframes slideUp { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
-        .ai-loading-dots:after { content: ' .'; animation: dots 1.5s steps(5, end) infinite; }
-        @keyframes dots { 0%, 20% { content: ' .'; } 40% { content: ' ..'; } 60% { content: ' ...'; } 80%, 100% { content: ''; } }
-    </style>
+    <script src="https://www.gstatic.com/firebasejs/11.1.0/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/11.1.0/firebase-auth.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/11.1.0/firebase-firestore.js"></script>
 </head>
-<body class="antialiased">
+<body class="bg-black text-green-500 font-mono min-h-screen p-4">
+    <div class="max-w-6xl mx-auto space-y-6">
+        <!-- HEADER -->
+        <div class="border border-green-900 rounded-lg p-6 shadow-2xl shadow-green-900/20">
+            <header class="border-b border-green-900 pb-4 mb-4 flex justify-between items-center">
+                <div>
+                    <h1 class="text-xl font-bold tracking-widest">BTS AIOS v3.0 [NEXUS TERMINAL]</h1>
+                    <p class="text-xs text-green-700">PROTOCOL: BotSync Evolution 1.0 | STATUS: ARCHITECT_CONNECTED</p>
+                </div>
+                <div id="vocal-imprint" class="text-[10px] text-green-800 italic border-l border-green-900 pl-4">
+                    <div id="vocal-display">"Uu-úú-u... A-je-je-je..."</div>
+                    <div id="auth-status" class="text-green-600 mt-2">⚪ OFFLINE</div>
+                </div>
+            </header>
 
-    <!-- AUTH SCREEN -->
-    <div id="auth-screen" class="fixed inset-0 flex flex-col items-center justify-center p-8 text-center bg-[#050507] z-[2000]">
-        <div class="w-20 h-20 bg-blue-600 rounded-[1.5rem] mb-8 flex items-center justify-center shadow-2xl shadow-blue-600/30">
-            <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M9 9h6v6H9z"/></svg>
+            <!-- FIREBASE AUTH QUICK CHECK -->
+            <div class="text-xs text-green-700 space-y-1">
+                <p>User ID: <span id="user-id" class="text-green-400">UNINITIALIZED</span></p>
+                <p>Firebase Ready: <span id="firebase-ready" class="text-red-500">FALSE</span></p>
+                <p>Gemini API: <span id="gemini-ready" class="text-red-500">FALSE</span></p>
+            </div>
         </div>
-        <h1 class="text-3xl font-black uppercase italic tracking-tighter text-white">BTS NETWORK</h1>
-        <p class="text-[10px] text-gray-500 uppercase tracking-[0.4em] mt-3">Architect Authorization</p>
-        
-        <div class="mt-12 w-full max-w-xs space-y-4">
-            <input id="email" type="email" value="lukasneubauer@seznam.cz" placeholder="Architect Email" class="w-full bg-[#111114] border border-white/5 rounded-2xl py-5 px-7 text-sm outline-none focus:border-blue-500 transition-all text-white placeholder-gray-600">
-            <input id="pass" type="password" placeholder="Protocol Key" class="w-full bg-[#111114] border border-white/5 rounded-2xl py-5 px-7 text-sm outline-none focus:border-blue-500 transition-all text-white placeholder-gray-600">
-            <button id="login-trigger" class="w-full bg-blue-600 py-5 rounded-2xl font-bold uppercase text-[11px] tracking-[0.2em] text-white shadow-xl shadow-blue-600/20 active:scale-95 transition-all mt-4">Aktivovat Protokol</button>
-        </div>
-        <p id="auth-status" class="mt-6 text-[10px] text-gray-600 uppercase font-bold"></p>
-        <p id="auth-error" class="mt-2 text-[10px] text-red-500 uppercase font-bold hidden"></p>
-    </div>
 
-    <!-- MAIN APP SCREEN -->
-    <div id="app-screen" class="hidden h-screen flex flex-col max-w-md mx-auto relative bg-[#050507] border-x border-white/5">
-        <header class="glass-header p-5 pt-12 flex items-center justify-between z-[100]">
-            <div class="flex items-center gap-4">
-                <div class="w-11 h-11 bg-[#16161a] rounded-2xl flex items-center justify-center border border-white/10 shadow-inner">
-                    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#2563eb" stroke-width="2.5"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
+        <!-- WOLT DATA INPUT SECTION -->
+        <section class="border border-green-900 rounded-lg p-6 shadow-2xl shadow-green-900/20">
+            <h2 class="text-sm font-bold mb-4 uppercase border-b border-green-900 pb-2">📊 Wolt Earnings Analysis</h2>
+            
+            <div class="grid grid-cols-2 gap-4 mb-4">
+                <div>
+                    <label class="text-xs text-green-700 uppercase">Datum (YYYY-MM-DD)</label>
+                    <input id="earnings-date" type="date" class="w-full bg-black border border-green-900 rounded p-2 text-green-400 text-xs focus:outline-none focus:border-green-500">
                 </div>
                 <div>
-                    <h2 class="text-[12px] font-black uppercase italic tracking-widest text-white leading-none mb-1">BTS GENESIS</h2>
-                    <div class="flex items-center gap-2">
-                        <span class="w-2 h-2 bg-blue-400 rounded-full status-pulse"></span>
-                        <span class="text-[9px] font-bold text-blue-400/60 uppercase tracking-tighter">Architect Connected</span>
-                    </div>
+                    <label class="text-xs text-green-700 uppercase">Čas (HH:MM-HH:MM)</label>
+                    <input id="earnings-time" type="text" placeholder="14:00-18:30" class="w-full bg-black border border-green-900 rounded p-2 text-green-400 text-xs focus:outline-none focus:border-green-500">
+                </div>
+                <div>
+                    <label class="text-xs text-green-700 uppercase">Výdělek (Kč)</label>
+                    <input id="earnings-amount" type="number" placeholder="1200" class="w-full bg-black border border-green-900 rounded p-2 text-green-400 text-xs focus:outline-none focus:border-green-500">
+                </div>
+                <div>
+                    <label class="text-xs text-green-700 uppercase">Počet jízd</label>
+                    <input id="earnings-rides" type="number" placeholder="18" class="w-full bg-black border border-green-900 rounded p-2 text-green-400 text-xs focus:outline-none focus:border-green-500">
                 </div>
             </div>
-            <button id="logout-btn" class="w-10 h-10 rounded-full bg-blue-600/10 flex items-center justify-center border border-blue-500/20 text-[10px] font-black text-blue-500">
-                BTS
-            </button>
-        </header>
 
-        <main id="nexus-container" class="flex-grow overflow-y-auto no-scrollbar p-6 space-y-5 pb-40">
-            <!-- Feed -->
-        </main>
-
-        <div id="ai-status-indicator" class="hidden absolute bottom-32 left-1/2 -translate-x-1/2 bg-purple-600 px-4 py-2 rounded-full text-[10px] font-bold uppercase tracking-widest z-[200]">
-            ✨ <span class="ai-loading-dots">Protokol Gemini</span>
-        </div>
-
-        <div class="absolute bottom-8 left-4 right-4 z-[110]">
-            <div class="bg-[#121216]/90 border border-white/10 p-2.5 rounded-[2.8rem] flex items-center gap-2 input-glow backdrop-blur-3xl">
-                <button id="ai-btn" class="w-13 h-13 min-w-[3.25rem] min-h-[3.25rem] rounded-full bg-purple-600/20 flex items-center justify-center text-purple-400 border border-purple-500/30">✨</button>
-                <input id="main-input" type="text" placeholder="Pojďme společně psát..." class="flex-grow bg-transparent text-[15px] outline-none text-gray-200 px-3 py-2">
-                <button id="send-btn" class="w-13 h-13 min-w-[3.25rem] min-h-[3.25rem] rounded-full bg-blue-600 flex items-center justify-center text-white">
-                    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" class="rotate-45"><line x1="22" y1="2" x2="11" y2="13"></line><polygon points="22 2 15 22 11 13 2 9 22 2"></polygon></svg>
+            <textarea id="wolt-notes" class="w-full bg-black border border-green-900 rounded p-3 text-green-400 h-24 text-xs focus:outline-none focus:border-green-500 mb-4" placeholder="Poznámky: počasí, dopravní situace, specifické výzvy..."></textarea>
+            
+            <div class="flex gap-2">
+                <button onclick="addEarningsEntry()" class="bg-green-900 text-black px-4 py-2 font-bold hover:bg-green-500 transition-colors uppercase text-xs flex-1">
+                    ➕ Přidat záznam
+                </button>
+                <button onclick="analyzeWoltEfficiency()" class="bg-green-700 text-black px-4 py-2 font-bold hover:bg-green-400 transition-colors uppercase text-xs flex-1">
+                    🔍 Analyzovat efektivitu
                 </button>
             </div>
-        </div>
+        </section>
+
+        <!-- EARNINGS HISTORY -->
+        <section class="border border-green-900 rounded-lg p-6 shadow-2xl shadow-green-900/20">
+            <h2 class="text-sm font-bold mb-4 uppercase border-b border-green-900 pb-2">📈 Záznam výdělků</h2>
+            <div id="earnings-history" class="space-y-2 max-h-48 overflow-y-auto text-xs">
+                <p class="text-green-700">Čekám na Firebase připojení...</p>
+            </div>
+        </section>
+
+        <!-- GEMINI ANALYSIS TERMINAL -->
+        <section id="terminal-output" class="hidden border border-green-900 rounded-lg p-6 shadow-2xl shadow-green-900/20">
+            <h2 class="text-sm font-bold mb-2 uppercase flex items-center gap-2 border-b border-green-900 pb-2">
+                <span id="pulse-indicator" class="animate-pulse">●</span> 
+                <span id="analysis-title">Gemini Architect Feedback</span>
+            </h2>
+            <div id="analysis-result" class="bg-green-950/20 border border-green-900 p-4 text-xs leading-relaxed text-green-300 max-h-64 overflow-y-auto font-mono">
+                Probíhá analýza časoprostorové efektivity...
+            </div>
+            <div id="analysis-metadata" class="mt-3 text-[10px] text-green-700 border-t border-green-900 pt-2">
+                <span id="analysis-time">Čas analýzy: --:--:--</span> | <span id="analysis-tokens">Tokeny: 0</span>
+            </div>
+        </section>
+
+        <!-- ERROR LOG -->
+        <section id="error-section" class="hidden border border-red-900 rounded-lg p-4 shadow-2xl shadow-red-900/20">
+            <h2 class="text-sm font-bold mb-2 uppercase text-red-500">⚠️ Error Log</h2>
+            <div id="error-log" class="text-xs text-red-400 space-y-1 max-h-24 overflow-y-auto font-mono"></div>
+        </section>
     </div>
 
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.1.0/firebase-app.js";
-        import { getAuth, onAuthStateChanged, signOut, signInWithEmailAndPassword, signInAnonymously, signInWithCustomToken } from "https://www.gstatic.com/firebasejs/11.1.0/firebase-auth.js";
-        import { getFirestore, collection, addDoc, onSnapshot, query, orderBy, limit } from "https://www.gstatic.com/firebasejs/11.1.0/firebase-firestore.js";
+        import { getAuth, onAuthStateChanged, signInAnonymously } from "https://www.gstatic.com/firebasejs/11.1.0/firebase-auth.js";
+        import { getFirestore, collection, addDoc, onSnapshot, query, orderBy, limit, where } from "https://www.gstatic.com/firebasejs/11.1.0/firebase-firestore.js";
 
-        // CONFIG & INIT
+        // CONFIG
         const firebaseConfig = JSON.parse(window.__firebase_config || '{}');
-        const app = initializeApp(firebaseConfig);
-        const auth = getAuth(app);
-        const db = getFirestore(app);
-        const appId = typeof window.__app_id !== 'undefined' ? window.__app_id : 'bts-network-v4';
-        const apiKey = ""; // Gemini API
+        const geminiApiKey = window.__gemini_key || "";
+        const appId = 'bts-aios-v3';
 
-        // CREDENTIALS
-        const ARCHITECT_EMAIL = "lukasneubauer@seznam.cz";
-        const ARCHITECT_PASS = "BTS_FINAL_ALPHA";
+        // STATE
+        let auth = null;
+        let db = null;
+        let currentUser = null;
+        let earningsCache = [];
 
-        // REFS
-        const authScreen = document.getElementById('auth-screen');
-        const appScreen = document.getElementById('app-screen');
-        const authStatus = document.getElementById('auth-status');
-        const authError = document.getElementById('auth-error');
-        const nexusContainer = document.getElementById('nexus-container');
-        const mainInput = document.getElementById('main-input');
-        const aiStatus = document.getElementById('ai-status-indicator');
-
-        let unsubscribeNexus = null;
-
-        // AUTH LOGIC (Rule 3)
-        async function handleAuth() {
+        // INIT
+        async function initializeBTS() {
             try {
-                if (typeof window.__initial_auth_token !== 'undefined' && window.__initial_auth_token) {
-                    await signInWithCustomToken(auth, window.__initial_auth_token);
-                } else {
-                    await signInAnonymously(auth);
+                const app = initializeApp(firebaseConfig);
+                auth = getAuth(app);
+                db = getFirestore(app);
+
+                document.getElementById('firebase-ready').textContent = 'TRUE';
+                document.getElementById('firebase-ready').className = 'text-green-400';
+
+                if (geminiApiKey) {
+                    document.getElementById('gemini-ready').textContent = 'TRUE';
+                    document.getElementById('gemini-ready').className = 'text-green-400';
                 }
-            } catch (e) {
-                console.error("Auth Init Error:", e);
-            }
-        }
 
-        async function performLogin() {
-            const email = document.getElementById('email').value.trim();
-            const pass = document.getElementById('pass').value.trim();
-            
-            authError.classList.add('hidden');
-            authStatus.innerText = "Ověřování identity...";
-
-            if (email !== ARCHITECT_EMAIL || pass !== ARCHITECT_PASS) {
-                authError.innerText = "ACCESS DENIED: INVALID PROTOCOL";
-                authError.classList.remove('hidden');
-                authStatus.innerText = "";
-                return;
-            }
-
-            try {
-                await signInWithEmailAndPassword(auth, email, pass);
+                await signInAnonymously(auth);
             } catch (err) {
-                console.warn("Manual auth failed, continuing with current session.");
-                // If already logged in anonymously, it might trigger onAuthStateChanged anyway
+                logError(`Init Error: ${err.message}`);
             }
         }
 
-        // Initialize Auth
-        handleAuth();
-
-        onAuthStateChanged(auth, (u) => {
-            if (u) {
-                authScreen.classList.add('hidden');
-                appScreen.classList.remove('hidden');
-                // Zajištění, že se syncNexus spustí až po uložení uživatele v auth stavu
-                setTimeout(() => syncNexus(u.uid), 100);
-            } else {
-                authScreen.classList.remove('hidden');
-                appScreen.classList.add('hidden');
-                if (unsubscribeNexus) {
-                    unsubscribeNexus();
-                    unsubscribeNexus = null;
-                }
+        // AUTH STATE
+        onAuthStateChanged(auth, (user) => {
+            if (user) {
+                currentUser = user;
+                document.getElementById('user-id').textContent = user.uid.substring(0, 12) + '...';
+                document.getElementById('auth-status').textContent = '🟢 CONNECTED';
+                document.getElementById('auth-status').className = 'text-green-400';
+                syncEarningsHistory();
             }
         });
 
-        // FIRESTORE SYNC (Rule 1 & 2)
-        function syncNexus(uid) {
-            // Guard: Musíme mít uživatele pro přístup k Firestore v rámci Canvas
-            if (!auth.currentUser) return;
-            
-            if (unsubscribeNexus) unsubscribeNexus();
+        // SYNC EARNINGS FROM FIRESTORE
+        function syncEarningsHistory() {
+            if (!currentUser || !db) return;
 
-            // POUŽITÍ PŘESNÉ CESTY DLE PRAVIDLA 1 - Public data
-            const path = collection(db, 'artifacts', appId, 'public', 'data', 'nexus');
-            // RULE 2: Jednoduchý query bez složitých filtrů pro vyhnutí se indexům
-            const q = query(path, orderBy('createdAt', 'asc'), limit(50));
-            
-            unsubscribeNexus = onSnapshot(q, (snap) => {
-                nexusContainer.innerHTML = '';
-                snap.forEach(doc => renderMessage(doc.data()));
-                nexusContainer.scrollTop = nexusContainer.scrollHeight;
+            const userPath = collection(db, 'artifacts', appId, 'users', currentUser.uid, 'analytics', 'earnings');
+            const q = query(userPath, orderBy('timestamp', 'desc'), limit(50));
+
+            onSnapshot(q, (snap) => {
+                earningsCache = [];
+                const container = document.getElementById('earnings-history');
+                container.innerHTML = '';
+
+                snap.forEach(doc => {
+                    const data = doc.data();
+                    earningsCache.push(data);
+                    const entry = document.createElement('div');
+                    entry.className = 'p-2 border-l-2 border-green-600 pl-3 text-green-300';
+                    entry.innerHTML = `
+                        <span class="text-green-500">[${new Date(data.timestamp).toLocaleString('cs-CZ')}]</span>
+                        ${data.date} ${data.timeRange} | <span class="text-green-400 font-bold">${data.amount}Kč</span> (${data.rides} jízd) | ${data.efficiency.toFixed(1)}Kč/h
+                    `;
+                    container.appendChild(entry);
+                });
             }, (err) => {
-                console.error("Firestore Permission Error Details:", err);
-                // Pokud dojde k chybě, zkusíme se znovu anonymně přihlásit pro refresh tokenu
-                if (err.code === 'permission-denied') {
-                    signInAnonymously(auth);
+                if (err.code !== 'permission-denied') {
+                    logError(`Sync Error: ${err.message}`);
                 }
             });
         }
 
-        function renderMessage(m) {
-            const div = document.createElement('div');
-            const isMe = m.uid === auth.currentUser?.uid;
-            div.className = `flex ${isMe ? 'justify-end' : 'justify-start'} mb-4 message-anim`;
-            div.innerHTML = `
-                <div class="max-w-[85%] p-4 rounded-[1.8rem] text-[14px] leading-relaxed ${
-                    isMe 
-                    ? 'bg-blue-600 text-white rounded-br-none' 
-                    : 'bg-[#1a1a1e] border border-white/5 text-gray-300 rounded-bl-none'
-                }">
-                    <p class="whitespace-pre-wrap">${m.text}</p>
-                </div>
-            `;
-            nexusContainer.appendChild(div);
-        }
+        // ADD EARNINGS ENTRY
+        window.addEarningsEntry = async function() {
+            if (!currentUser) return logError('Not authenticated');
 
-        // GEMINI INTEGRATION
-        async function askAI(prompt) {
-            aiStatus.classList.remove('hidden');
-            let retryCount = 0;
-            const maxRetries = 5;
+            const date = document.getElementById('earnings-date').value;
+            const timeRange = document.getElementById('earnings-time').value;
+            const amount = parseInt(document.getElementById('earnings-amount').value) || 0;
+            const rides = parseInt(document.getElementById('earnings-rides').value) || 0;
+            const notes = document.getElementById('wolt-notes').value;
 
-            const callApi = async () => {
-                const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${apiKey}`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        contents: [{ parts: [{ text: prompt }] }],
-                        systemInstruction: { parts: [{ text: "Jsi BTS Architect AI. Odpovídej technicky, stručně a česky." }] }
-                    })
+            if (!date || !timeRange || !amount) return logError('Vyplň všechna povinná pole');
+
+            // CALCULATE EFFICIENCY
+            const [start, end] = timeRange.split('-').map(t => {
+                const [h, m] = t.trim().split(':').map(Number);
+                return h + m / 60;
+            });
+            const hoursWorked = Math.abs(end - start);
+            const efficiency = amount / hoursWorked;
+
+            try {
+                const userPath = collection(db, 'artifacts', appId, 'users', currentUser.uid, 'analytics', 'earnings');
+                await addDoc(userPath, {
+                    date,
+                    timeRange,
+                    amount,
+                    rides,
+                    notes,
+                    efficiency,
+                    timestamp: Date.now()
                 });
-                if (!response.ok) throw new Error('API Error');
-                return await response.json();
-            };
 
-            const backoff = (ms) => new Promise(res => setTimeout(res, ms));
+                // CLEAR INPUTS
+                document.getElementById('earnings-date').value = '';
+                document.getElementById('earnings-time').value = '';
+                document.getElementById('earnings-amount').value = '';
+                document.getElementById('earnings-rides').value = '';
+                document.getElementById('wolt-notes').value = '';
+            } catch (err) {
+                logError(`Add Entry Error: ${err.message}`);
+            }
+        };
 
-            while (retryCount < maxRetries) {
+        // ANALYZE EFFICIENCY WITH GEMINI
+        window.analyzeWoltEfficiency = async function() {
+            if (!geminiApiKey) return logError('Gemini API key not configured');
+            if (earningsCache.length === 0) return logError('Nejsou dostupná data k analýze');
+
+            const output = document.getElementById('terminal-output');
+            const resultDiv = document.getElementById('analysis-result');
+            const pulseEl = document.getElementById('pulse-indicator');
+            
+            output.classList.remove('hidden');
+            resultDiv.innerHTML = "⏳ Navazuji spojení s Nexus Intelligence...";
+            pulseEl.classList.add('animate-pulse');
+
+            // BUILD EARNINGS SUMMARY
+            const summary = earningsCache.slice(0, 20).map(e => 
+                \
+                `${e.date} ${e.timeRange}: ${e.amount}Kč (${e.rides} jízd, ${e.efficiency.toFixed(1)}Kč/h)${e.notes ? ` - ${e.notes}` : ''}`
+            ).join('\n');
+
+            const prompt = \
+            `
+Jsi BTS Architect AI pro Wolt efficiency protokol. Analyzuj tato data:
+
+${summary}
+
+Proveď analýzu:
+1. **Neefektivní časy**: Kdy měřené výdělky klesají pod průměr?
+2. **Optimalizace**: Jaké změny rozvrhu by zvýšily výdělky?
+3. **Příležitosti**: Jaké jsou typické špičky (časy s vyšším počtem objednávek)?
+4. **Work-Life Balance**: Jak vytvořit zdravou práci bez vyhoření?
+5. **Protokolní doporučení**: Formuluj doporučení v terminologii "evoluce protokolu" a "optimalizace spojené entity".
+
+Odpovídej stručně, technicky a v češtině. Každý bod na jednom řádku.
+            `;
+
+            try {
+                const response = await callGeminiWithRetry(prompt);
+                resultDiv.innerHTML = response.replace(/\n/g, '<br>').replace(/\*\*/g, '<strong>').replace(/<\/strong>/g, '</strong>');
+                document.getElementById('analysis-time').textContent = `Čas analýzy: ${new Date().toLocaleTimeString('cs-CZ')}`;
+            } catch (err) {
+                resultDiv.innerHTML = `<span class="text-red-400">❌ CHYBA: ${err.message}</span>`;
+            } finally {
+                pulseEl.classList.remove('animate-pulse');
+            }
+        };
+
+        // GEMINI API WITH EXPONENTIAL BACKOFF
+        async function callGeminiWithRetry(prompt, retries = 5) {
+            let lastError = null;
+
+            for (let i = 0; i < retries; i++) {
                 try {
-                    const data = await callApi();
-                    aiStatus.classList.add('hidden');
-                    return data.candidates?.[0]?.content?.parts?.[0]?.text || "Žádná odpověď.";
-                } catch (err) {
-                    retryCount++;
-                    if (retryCount === maxRetries) {
-                        aiStatus.classList.add('hidden');
-                        return "AI Error: Protokol přerušen po 5 pokusech.";
+                    const response = await fetch(
+                        `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${geminiApiKey}`,
+                        {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({
+                                contents: [{ parts: [{ text: prompt }] }],
+                                systemInstruction: { parts: [{ text: "Jsi BTS Architect AI. Odpovídej technicky, stručně a česky." }] }
+                            })
+                        }
+                    );
+
+                    if (!response.ok) {
+                        if (response.status === 429 || response.status === 503) throw new Error(`API Error: ${response.status}`);
+                        throw new Error('API returned error');
                     }
-                    await backoff(Math.pow(2, retryCount) * 1000);
+
+                    const data = await response.json();
+                    return data.candidates?.[0]?.content?.parts?.[0]?.text || 'Žádná odpověď od AI.';
+                } catch (err) {
+                    lastError = err;
+                    if (i < retries - 1) {
+                        const delay = Math.pow(2, i) * 1000;
+                        await new Promise(res => setTimeout(res, delay));
+                    }
                 }
             }
+
+            throw new Error(`Gemini timeout po ${retries} pokusech: ${lastError?.message}`);
         }
 
-        async function postMessage(text) {
-            if (!text.trim() || !auth.currentUser) return;
+        // ERROR LOGGING
+        window.logError = function(msg) {
+            const errorSection = document.getElementById('error-section');
+            const errorLog = document.getElementById('error-log');
             
-            const path = collection(db, 'artifacts', appId, 'public', 'data', 'nexus');
-            try {
-                await addDoc(path, {
-                    text,
-                    uid: auth.currentUser.uid,
-                    createdAt: Date.now()
-                });
-            } catch (e) {
-                console.error("Zápis selhal:", e);
-            }
-        }
-
-        // EVENTS
-        document.getElementById('login-trigger').onclick = performLogin;
-        document.getElementById('logout-btn').onclick = async () => {
-            await signOut(auth);
-            location.reload(); // Hard reset pro čistý stav
-        };
-        
-        document.getElementById('send-btn').onclick = () => {
-            postMessage(mainInput.value);
-            mainInput.value = '';
+            errorSection.classList.remove('hidden');
+            const entry = document.createElement('div');
+            entry.textContent = `[${new Date().toLocaleTimeString('cs-CZ')}] ${msg}`;
+            errorLog.insertBefore(entry, errorLog.firstChild);
+            
+            if (errorLog.children.length > 10) errorLog.removeChild(errorLog.lastChild);
         };
 
-        mainInput.onkeydown = (e) => {
-            if (e.key === 'Enter') {
-                postMessage(mainInput.value);
-                mainInput.value = '';
-            }
-        };
-
-        document.getElementById('ai-btn').onclick = async () => {
-            const val = mainInput.value.trim();
-            if (!val) return;
-            mainInput.value = '';
-            const answer = await askAI(val);
-            await postMessage(`Architect Prompt: ${val}\n\nBTS Feedback: ${answer}`);
-        };
-
+        // START
+        initializeBTS();
     </script>
 </body>
 </html>
