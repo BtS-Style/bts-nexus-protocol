@@ -318,3 +318,582 @@ Odpovídej stručně, technicky a v češtině. Každý bod na jednom řádku.
     </script>
 </body>
 </html>
+// Používáme aktuální modely (únor 2026)
+const GEMINI_TEXT_MODEL = "gemini-2.5-flash";           // nebo gemini-3-flash-preview
+const GEMINI_IMAGE_MODEL = "imagen-4.0-generate-001";   // nebo imagen-4.0-ultra-generate-001
+const GEMINI_TTS_MODEL = "gemini-2.5-flash-preview-tts"; // pokud máš přístup
+
+// --------------------------------------------------
+// requestGemini – univerzální funkce (text + image + tts)
+const requestGemini = async (prompt, systemPrompt = "", options = {}) => {
+  const {
+    isJson = false,
+    model = GEMINI_TEXT_MODEL,
+    responseMimeType = isJson ? "application/json" : "text/plain",
+    responseSchema,
+    generateImage = false,
+    generateAudio = false,
+  } = options;
+
+  const payload = {
+    contents: [{ parts: [{ text: prompt }] }],
+    ...(systemPrompt && { systemInstruction: { parts: [{ text: systemPrompt }] } }),
+    generationConfig: {
+      ...(isJson && { responseMimeType }),
+      ...(isJson && responseSchema && { responseSchema }),
+      temperature: 0.7,
+      topP: 0.95,
+    },
+  };
+
+  let endpointModel = model;
+  if (generateImage) endpointModel = GEMINI_IMAGE_MODEL;
+  if (generateAudio) endpointModel = GEMINI_TTS_MODEL;
+
+  try {
+    const resp = await fetch(
+      `https://generativelanguage.googleapis.com/v1beta/models/\( {endpointModel}:generateContent?key= \){apiKey}`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      }
+    );
+
+    if (!resp.ok) {
+      const err = await resp.json();
+      throw new Error(err.error?.message || "Gemini API error");
+    }
+
+    const result = await resp.json();
+    let text = result.candidates?.[0]?.content?.parts?.[0]?.text;
+
+    if (generateAudio && result.candidates?.[0]?.content?.parts?.[0]?.inlineData) {
+      // TTS – vracíme base64 PCM audio
+      return result.candidates[0].content.parts[0].inlineData.data;
+    }
+
+    if (generateImage && result.candidates?.[0]?.content?.parts?.[0]?.inlineData) {
+      // Imagen – base64 PNG/JPEG
+      return result.candidates[0].content.parts[0].inlineData.data;
+    }
+
+    return isJson ? JSON.parse(text) : text;
+  } catch (err) {
+    console.error("Gemini request failed:", err);
+    throw err;
+  }
+};
+
+// Příklad: generování postu (upraveno)
+const handleGenerateFullPost = async () => {
+  if (!newMessage.trim()) return;
+  setIsProcessing(true);
+  setStatusMessage("🧠 Generuji kyberpunkový uzel...");
+
+  try {
+    const aiData = await requestGemini(
+      `Vytvoř kyberpunkový síťový uzel na téma: ${newMessage}. 
+       Styl: temný, technický, dystopický, česky.`,
+      "Vrať pouze čistý JSON objekt s klíči: title, description, visualPrompt, author (vymyšlené hacker jméno).",
+      {
+        isJson: true,
+        schema: {
+          type: "OBJECT",
+          properties: {
+            title: { type: "STRING" },
+            description: { type: "STRING" },
+            visualPrompt: { type: "STRING" },
+            author: { type: "STRING" },
+          },
+          required: ["title", "description", "visualPrompt", "author"],
+        },
+      }
+    );
+
+    setStatusMessage("🎨 Generuji vizuál (Imagen 4)...");
+    const base64Image = await requestGemini(
+      aiData.visualPrompt,
+      "",
+      { generateImage: true }
+    );
+
+    const imageUrl = await compressImage(`data:image/png;base64,${base64Image}`, 1024, 0.78);
+
+    await addDoc(collection(db, "artifacts", appId, "public", "data", "posts"), {
+      ...aiData,
+      imageUrl,
+      createdAt: serverTimestamp(),
+      likes: 0,
+      creatorId: user.uid,
+      isPrimaryNode: false,           // ← nové pole
+      nodeReputation: 1,              // ← jednoduchý start reputace
+      version: 1,
+    });
+
+    setNewMessage("");
+    setView("feed");
+  } catch (err) {
+    setStatusMessage("❌ Chyba při generování uzlu: " + err.message);
+  } finally {
+    setIsProcessing(false);
+  }
+};
+
+// TTS – opraveno na nový formát
+const handleTtsPlayback = async (text, msgId) => {
+  if (isSpeaking) return;
+  setIsSpeaking(msgId);
+
+  try {
+    const base64Pcm = await requestGemini(
+      `Přečti tento broadcast s dramatickým kyberpunkovým hlasem: ${text}`,
+      "",
+      { generateAudio: true }
+    );
+
+    const audioUrl = pcmToWavUrl(base64Pcm, 24000);
+    const audio = new Audio(audioUrl);
+    audio.onended = () => setIsSpeaking(null);
+    audio.play().catch(e => console.error("Audio play error", e));
+  } catch (err) {
+    console.error(err);
+    setIsSpeaking(null);
+  }
+};
+
+// Nová funkce – Claim Primary Node
+const handleClaimPrimaryNode = async (postId) => {
+  if (!user) return;
+
+  try {
+    const postRef = doc(db, "artifacts", appId, "public", "data", "posts", postId);
+    const postSnap = await getDoc(postRef);
+
+    if (!postSnap.exists() || postSnap.data().isPrimaryNode) {
+      alert("Uzel již má primární node nebo neexistuje.");
+      return;
+    }
+
+    await updateDoc(postRef, {
+      isPrimaryNode: true,
+      primaryNodeOwner: user.uid,
+      primarySince: serverTimestamp(),
+      nodeReputation: 5, // bonus za primární status
+    });
+
+    setStatusMessage("✅ Stal ses primárním uzlem!");
+    setTimeout(() => setStatusMessage(""), 4000);
+  } catch (err) {
+    console.error(err);
+    setStatusMessage("❌ Claim selhal");
+  }
+};
+match /artifacts/{appId}/public/data/posts/{postId} {
+  allow read: if true;
+  allow create: if request.auth != null && request.resource.data.creatorId == request.auth.uid;
+  allow update: if request.auth != null && (
+    resource.data.creatorId == request.auth.uid ||  // vlastník
+    exists(/databases/\( (database)/documents/users/ \)(request.auth.uid)) // nebo admin / primary node
+  );
+}
+import React, { useState, useEffect, useRef } from 'react';
+import { initializeApp } from 'firebase/app';
+import { 
+  getFirestore, collection, addDoc, query, onSnapshot, 
+  doc, setDoc, getDoc, orderBy, serverTimestamp, updateDoc 
+} from 'firebase/firestore';
+import { 
+  getAuth, signInWithCustomToken, signInAnonymously, onAuthStateChanged 
+} from 'firebase/auth';
+import { 
+  Send, Zap, User, MessageSquare, Heart, Share2, MoreHorizontal,
+  Sparkles, Volume2, Wand2, RefreshCw, BrainCircuit, Terminal, Radio, 
+  Binary, Cpu, Database, Network, Activity, Ghost, ZapOff, Layers
+} from 'lucide-react';
+
+// --- INITIALIZATION ---
+const firebaseConfig = JSON.parse(__firebase_config);
+const app = initializeApp(firebaseConfig);
+const auth = getAuth(app);
+const db = getFirestore(app);
+const appId = typeof __app_id !== 'undefined' ? __app_id : 'bts-botsync-net-hypercore';
+const apiKey = ""; 
+
+export default function App() {
+  const [user, setUser] = useState(null);
+  const [view, setView] = useState('feed'); 
+  const [posts, setPosts] = useState([]);
+  const [messages, setMessages] = useState([]);
+  const [newMessage, setNewMessage] = useState('');
+  const [isProcessing, setIsProcessing] = useState(false);
+  const [statusMessage, setStatusMessage] = useState('');
+  const [aiAnalysis, setAiAnalysis] = useState(null);
+  const [isSpeaking, setIsSpeaking] = useState(null);
+  const [aiTerminalLog, setAiTerminalLog] = useState([{ role: 'system', text: 'HYPERCORE_ACTIVE: Čekám na synchronizaci Architecta...' }]);
+  
+  const scrollRef = useRef(null);
+  const terminalRef = useRef(null);
+
+  // --- AUTH ---
+  useEffect(() => {
+    const initAuth = async () => {
+      try {
+        if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
+          await signInWithCustomToken(auth, __initial_auth_token);
+        } else {
+          await signInAnonymously(auth);
+        }
+      } catch (err) { console.error("Auth error:", err); }
+    };
+    initAuth();
+    const unsubscribe = onAuthStateChanged(auth, setUser);
+    return () => unsubscribe();
+  }, []);
+
+  // --- FIRESTORE SYNC ---
+  useEffect(() => {
+    if (!user) return;
+    const postsCol = collection(db, 'artifacts', appId, 'public', 'data', 'posts');
+    const unsubscribePosts = onSnapshot(postsCol, (snapshot) => {
+      const data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+      setPosts(data.sort((a, b) => (b.createdAt?.seconds || 0) - (a.createdAt?.seconds || 0)));
+    }, (err) => console.error("Posts Fetch Error:", err));
+
+    const chatCol = collection(db, 'artifacts', appId, 'public', 'data', 'messages');
+    const unsubscribeChat = onSnapshot(chatCol, (snapshot) => {
+      const data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+      setMessages(data.sort((a, b) => (a.createdAt?.seconds || 0) - (b.createdAt?.seconds || 0)));
+      scrollToBottom();
+    }, (err) => console.error("Chat Fetch Error:", err));
+
+    return () => { unsubscribePosts(); unsubscribeChat(); };
+  }, [user]);
+
+  const scrollToBottom = () => setTimeout(() => scrollRef.current?.scrollIntoView({ behavior: 'smooth' }), 100);
+
+  // --- IMAGE COMPRESSION ---
+  const compressImage = async (base64Str, maxWidth = 800, quality = 0.7) => {
+    return new Promise((resolve) => {
+      const img = new Image();
+      img.src = base64Str;
+      img.onload = () => {
+        const canvas = document.createElement('canvas');
+        let width = img.width;
+        let height = img.height;
+        if (width > maxWidth) { height = (maxWidth / width) * height; width = maxWidth; }
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext('2d');
+        ctx.drawImage(img, 0, 0, width, height);
+        resolve(canvas.toDataURL('image/jpeg', quality));
+      };
+    });
+  };
+
+  // --- GEMINI ENGINE ---
+  const requestGemini = async (prompt, systemPrompt, options = {}) => {
+    const { isJson = false, model = "gemini-2.5-flash-preview-09-2025" } = options;
+    const payload = {
+      contents: [{ parts: [{ text: prompt }] }],
+      systemInstruction: { parts: [{ text: systemPrompt }] }
+    };
+    if (isJson) {
+      payload.generationConfig = { 
+        responseMimeType: "application/json",
+        responseSchema: options.schema
+      };
+    }
+    const resp = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    });
+    const result = await resp.json();
+    const text = result.candidates?.[0]?.content?.parts?.[0]?.text;
+    return isJson ? JSON.parse(text) : text;
+  };
+
+  // --- ✨ AI POWERED FEATURES ---
+
+  const handleGhostWriter = async () => {
+    if (!newMessage.trim()) return;
+    setIsProcessing(true);
+    setStatusMessage('🧠 AI GHOST_WRITER DOPLŇUJE DATOVÝ TOK...');
+    try {
+      const completion = await requestGemini(
+        `Pokračuj v této zprávě Architecta v technickém, mírně arogantním a vysoce kyberpunkovém stylu: "${newMessage}"`,
+        "Jsi AI Ghost Writer pro Architecta. Piš česky. Doplň maximálně dvě věty."
+      );
+      setNewMessage(prev => prev + " " + completion);
+    } catch (err) { console.error(err); } finally { setIsProcessing(false); setStatusMessage(''); }
+  };
+
+  const handleNodeMutation = async (postId) => {
+    const post = posts.find(p => p.id === postId);
+    if (!post) return;
+
+    setIsProcessing(true);
+    setStatusMessage('🌀 MUTACE NODE STRUKTURY...');
+    try {
+      const mutatedData = await requestGemini(
+        `Mutuj tento uzel sítě: "${post.title} - ${post.description}". Udělej ho více "glitched", temnější a pokročilejší.`,
+        "Vrať JSON s klíči 'title', 'description' a 'visualPrompt' (pro generátor obrazu). Piš česky.",
+        { 
+          isJson: true,
+          schema: {
+            type: "OBJECT",
+            properties: {
+              title: { type: "STRING" },
+              description: { type: "STRING" },
+              visualPrompt: { type: "STRING" }
+            },
+            required: ["title", "description", "visualPrompt"]
+          }
+        }
+      );
+
+      setStatusMessage('🎨 RE-SYNTÉZA VIZUÁLU...');
+      const imgResp = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/imagen-4.0-generate-001:predict?key=${apiKey}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ instances: { prompt: mutatedData.visualPrompt }, parameters: { sampleCount: 1 } })
+      });
+      const imgResult = await imgResp.json();
+      const imageUrl = await compressImage(`data:image/png;base64,${imgResult.predictions[0].bytesBase64Encoded}`, 1024, 0.75);
+
+      const postRef = doc(db, 'artifacts', appId, 'public', 'data', 'posts', postId);
+      await updateDoc(postRef, {
+        title: mutatedData.title,
+        description: mutatedData.description,
+        imageUrl: imageUrl,
+        isMutated: true,
+        lastMutationAt: serverTimestamp()
+      });
+      
+    } catch (err) { console.error(err); } finally { setIsProcessing(false); setStatusMessage(''); }
+  };
+
+  const handleNetworkAudit = async () => {
+    setIsProcessing(true);
+    setStatusMessage('📡 PROBÍHÁ DEEP-NETWORK AUDIT...');
+    try {
+      const nodesContext = posts.map(p => `${p.title}: ${p.description}`).join("\n");
+      const auditResult = await requestGemini(
+        `Analyzuj tyto uzly sítě a předpověz budoucí hrozby nebo příležitosti: \n${nodesContext}`,
+        "Jsi síťový auditor BotSync. Piš česky, stručně, formou 3 technických bodů."
+      );
+      setAiAnalysis(auditResult);
+    } catch (err) { setAiAnalysis("⚠️ Auditní jádro je offline."); } finally { setIsProcessing(false); setStatusMessage(''); }
+  };
+
+  const handleGenerateFullPost = async () => {
+    if (!newMessage.trim()) return;
+    setIsProcessing(true);
+    setStatusMessage('🧠 ANALÝZA KONCEPTU...');
+    try {
+      const aiData = await requestGemini(
+        `Vytvoř kyberpunkový uzel o: ${newMessage}`,
+        "Vrať JSON: title, description, author, visualPrompt. Piš česky.",
+        { 
+          isJson: true,
+          schema: {
+            type: "OBJECT",
+            properties: {
+              title: { type: "STRING" },
+              description: { type: "STRING" },
+              author: { type: "STRING" },
+              visualPrompt: { type: "STRING" }
+            },
+            required: ["title", "description", "author", "visualPrompt"]
+          }
+        }
+      );
+      setStatusMessage('🎨 SYNTÉZA VIZUÁLU...');
+      const imgResp = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/imagen-4.0-generate-001:predict?key=${apiKey}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ instances: { prompt: aiData.visualPrompt }, parameters: { sampleCount: 1 } })
+      });
+      const imgResult = await imgResp.json();
+      const imageUrl = await compressImage(`data:image/png;base64,${imgResult.predictions[0].bytesBase64Encoded}`, 1024, 0.75);
+
+      await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'posts'), {
+        ...aiData, imageUrl, createdAt: serverTimestamp(), likes: 0, creatorId: user.uid
+      });
+      setNewMessage(''); setView('feed');
+    } catch (err) { console.error(err); } finally { setIsProcessing(false); setStatusMessage(''); }
+  };
+
+  const handleTtsPlayback = async (text, msgId) => {
+    if (isSpeaking) return;
+    setIsSpeaking(msgId);
+    try {
+      const resp = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-tts:generateContent?key=${apiKey}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          contents: [{ parts: [{ text: `System Message Broadcast: ${text}` }] }],
+          generationConfig: {
+            responseModalities: ["AUDIO"],
+            speechConfig: { voiceConfig: { prebuiltVoiceConfig: { voiceName: "Puck" } } }
+          }
+        })
+      });
+      const result = await resp.json();
+      const pcmBase64 = result.candidates[0].content.parts[0].inlineData.data;
+      const audio = new Audio(pcmToWavUrl(pcmBase64, 24000));
+      audio.onended = () => setIsSpeaking(null);
+      audio.play();
+    } catch (err) { console.error(err); setIsSpeaking(null); }
+  };
+
+  const pcmToWavUrl = (base64, sampleRate) => {
+    const pcmData = atob(base64);
+    const buffer = new ArrayBuffer(44 + pcmData.length);
+    const view = new DataView(buffer);
+    const writeString = (o, s) => { for (let i = 0; i < s.length; i++) view.setUint8(o + i, s.charCodeAt(i)); };
+    writeString(0, 'RIFF'); view.setUint32(4, 36 + pcmData.length, true);
+    writeString(8, 'WAVE'); writeString(12, 'fmt '); view.setUint32(16, 16, true);
+    view.setUint16(20, 1, true); view.setUint16(22, 1, true); view.setUint32(24, sampleRate, true);
+    view.setUint32(28, sampleRate * 2, true); view.setUint16(32, 2, true); view.setUint16(34, 16, true);
+    writeString(36, 'data'); view.setUint32(40, pcmData.length, true);
+    for (let i = 0; i < pcmData.length; i++) view.setUint8(44 + i, pcmData.charCodeAt(i));
+    return URL.createObjectURL(new Blob([buffer], { type: 'audio/wav' }));
+  };
+
+  const handleNeuralDialogue = async (text) => {
+    if (!text.trim()) return;
+    setAiTerminalLog(prev => [...prev, { role: 'user', text }]);
+    setIsProcessing(true);
+    try {
+      const context = posts.slice(0, 3).map(p => p.title).join(", ");
+      const response = await requestGemini(
+        `Uživatel říká: ${text}\nKontext sítě: ${context}`,
+        "Jsi Hyper-jádro sítě BotSync. Odpovídej česky, v krátkých technických větách. Buď chladný a efektivní."
+      );
+      setAiTerminalLog(prev => [...prev, { role: 'ai', text: response }]);
+    } catch (err) { setAiTerminalLog(prev => [...prev, { role: 'system', text: 'SYNC_ERROR' }]); }
+    finally { setIsProcessing(false); }
+  };
+
+  if (!user) return <div className="min-h-screen bg-slate-950 flex flex-col items-center justify-center p-4">
+    <div className="w-16 h-16 border-4 border-cyan-500 border-t-transparent rounded-full animate-spin shadow-[0_0_30px_rgba(6,182,212,0.4)]"></div>
+  </div>;
+
+  return (
+    <div className="min-h-screen bg-slate-950 text-slate-100 font-sans flex flex-col max-w-md mx-auto border-x border-slate-900 shadow-2xl relative overflow-hidden">
+      
+      {/* AI OVERLAY */}
+      {isProcessing && (
+        <div className="absolute inset-0 z-[100] bg-slate-950/90 backdrop-blur-xl flex flex-col items-center justify-center p-8 text-center animate-in fade-in duration-300">
+          <div className="w-24 h-24 mb-6 relative">
+             <div className="absolute inset-0 border-b-2 border-cyan-500 rounded-full animate-spin"></div>
+             <BrainCircuit className="absolute inset-0 m-auto text-cyan-400 animate-pulse" size={40} />
+          </div>
+          <div className="text-cyan-400 font-mono text-xs tracking-widest uppercase mb-2">{statusMessage}</div>
+          <div className="w-48 h-1 bg-slate-800 rounded-full overflow-hidden">
+             <div className="h-full bg-cyan-500 animate-[progress_2s_infinite_linear]"></div>
+          </div>
+        </div>
+      )}
+
+      {/* HEADER */}
+      <header className="p-4 flex items-center justify-between border-b border-slate-900 bg-slate-950/90 backdrop-blur-md sticky top-0 z-40">
+        <div className="flex items-center gap-2">
+          <Zap size={24} className="text-cyan-500" />
+          <h1 className="font-black tracking-tighter text-xl uppercase italic">BotSync <span className="text-cyan-400">HyperCore</span></h1>
+        </div>
+        <div className="flex items-center gap-3">
+          <div className="flex items-center gap-1.5 px-2 py-0.5 bg-green-500/10 border border-green-500/20 rounded-full">
+            <Activity size={10} className="text-green-500 animate-pulse" />
+            <span className="text-[8px] font-mono text-green-500 uppercase">ONLINE</span>
+          </div>
+        </div>
+      </header>
+
+      {/* MAIN VIEWPORT */}
+      <main className="flex-1 overflow-y-auto pb-24 scroll-smooth custom-scrollbar">
+        {view === 'feed' && (
+          <div className="p-4 space-y-6 animate-in fade-in duration-500">
+            {posts.map(post => (
+              <article key={post.id} className={`bg-slate-900/50 rounded-3xl overflow-hidden border ${post.isMutated ? 'border-purple-500/40 shadow-[0_0_15px_rgba(168,85,247,0.1)]' : 'border-slate-800'} group hover:border-cyan-500/30 transition-all duration-500 relative`}>
+                <div className="p-4 flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-xl bg-slate-800 flex items-center justify-center border border-slate-700">
+                      {post.isMutated ? <ZapOff size={20} className="text-purple-400" /> : <Ghost size={20} className="text-cyan-400" />}
+                    </div>
+                    <div>
+                      <div className="font-black text-xs uppercase flex items-center gap-2">
+                        {post.author}
+                        {post.isMutated && <span className="text-[8px] bg-purple-500/20 text-purple-400 px-1 rounded">MUTATED</span>}
+                      </div>
+                      <div className="text-[8px] text-slate-600 font-mono">NODE_HASH_{post.id.slice(0,8)}</div>
+                    </div>
+                  </div>
+                  <button onClick={() => handleNodeMutation(post.id)} className="p-2 text-slate-600 hover:text-purple-400 transition-colors">
+                    <Wand2 size={16} />
+                  </button>
+                </div>
+                
+                <div className="relative aspect-square overflow-hidden bg-slate-950">
+                  <img src={post.imageUrl} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-[1.5s]" />
+                  <div className="absolute inset-0 bg-gradient-to-t from-slate-950 via-transparent to-transparent opacity-60"></div>
+                  
+                  {post.isMutated && (
+                    <div className="absolute inset-0 bg-purple-500/5 mix-blend-overlay animate-pulse"></div>
+                  )}
+
+                  <div className="absolute bottom-4 right-4 flex gap-2">
+                     <button className="p-3 bg-slate-900/80 backdrop-blur-md border border-white/5 rounded-2xl text-white hover:bg-cyan-500/40 transition-all active:scale-95 shadow-xl">
+                        <Heart size={18} />
+                     </button>
+                  </div>
+                </div>
+
+                <div className="p-6">
+                  <h3 className={`font-black text-lg mb-2 uppercase leading-tight ${post.isMutated ? 'text-purple-100 italic' : 'text-cyan-50'}`}>{post.title}</h3>
+                  <p className="text-sm text-slate-400 leading-relaxed line-clamp-3 mb-4">{post.description}</p>
+                  
+                  <div className="flex items-center justify-between pt-4 border-t border-slate-800/50">
+                     <div className="flex -space-x-2">
+                        {[1,2,3].map(i => <div key={i} className="w-6 h-6 rounded-full border-2 border-slate-900 bg-slate-800"></div>)}
+                     </div>
+                     <button className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-slate-600 hover:text-cyan-400">
+                        <Share2 size={14} /> Re-sync
+                     </button>
+                  </div>
+                </div>
+              </article>
+            ))}
+          </div>
+        )}
+
+        {view === 'chat' && (
+          <div className="flex flex-col h-full min-h-[78vh] animate-in slide-in-from-right-4 duration-300">
+            <div className="flex-1 p-4 space-y-6">
+              {messages.map((msg) => (
+                <div key={msg.id} className={`flex flex-col ${msg.senderId === user.uid ? 'items-end' : 'items-start'}`}>
+                  <div className={`max-w-[85%] p-4 rounded-3xl relative group shadow-2xl ${
+                    msg.senderId === user.uid ? 'bg-gradient-to-br from-cyan-600 to-blue-800 text-white rounded-tr-none' : 'bg-slate-900 text-slate-300 rounded-tl-none border border-slate-800'
+                  }`}>
+                    <p className="text-sm font-medium leading-relaxed">{msg.text}</p>
+                    <button 
+                      onClick={() => handleTtsPlayback(msg.text, msg.id)}
+                      className={`absolute -bottom-2 ${msg.senderId === user.uid ? '-left-2' : '-right-2'} w-8 h-8 rounded-xl bg-slate-800 flex items-center justify-center text-cyan-400 border border-slate-700 opacity-0 group-hover:opacity-100 transition-all shadow-xl`}
+                    >
+                      {isSpeaking === msg.id ? <RefreshCw size={12} className="animate-spin" /> : <Volume2 size={14} />}
+                    </button>
+                  </div>
+                  <span className="text-[8px] text-slate-700 mt-1 uppercase font-black px-2">{msg.senderName}</span>
+                </div>
+              ))}
+              <div ref={scrollRef} />
+            </div>
+            
+            <div className="p-4 bg-slate-950/95 border-t border-slate-900/50 sticky bottom-0 z-30 backdrop-blur-xl">
+              <div className="flex gap-2 overflow-x-auto pb-4 no-scrollbar mb-2">
+                <button onClick={handleGenerateFullPost} className="shrink-0 flex items-center gap-2 px-4 py-2.5 bg-cyan-600 rounded-2xl text-[10px] font-black uppercase hover:bg-cyan-500 transition-all shadow-lg shadow-cyan-900/20">
+                  <Sparkles size={14} /> ✨ SYNC NODE
+                </button>
+                <button onClick={handleGhostWriter} disabled={!newMessage.trim()} className="shrink-0 flex items-center gap-2 px-4 py-2.5 bg-slate-900 border border-slate-800 rounded-2xl text-[10px] font-black up
