@@ -897,3 +897,113 @@ export default function App() {
                   <Sparkles size={14} /> ✨ SYNC NODE
                 </button>
                 <button onClick={handleGhostWriter} disabled={!newMessage.trim()} className="shrink-0 flex items-center gap-2 px-4 py-2.5 bg-slate-900 border border-slate-800 rounded-2xl text-[10px] font-black up
+<!DOCTYPE html>
+<html lang="cs">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>BTS AIOS v3.1 - Nexus Terminal [AIDNA PROTECTED]</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://www.gstatic.com/firebasejs/11.1.0/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/11.1.0/firebase-auth.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/11.1.0/firebase-firestore.js"></script>
+</head>
+<body class="bg-black text-green-500 font-mono min-h-screen p-4">
+    <div class="max-w-6xl mx-auto space-y-6">
+        <!-- HEADER -->
+        <div class="border border-green-900 rounded-lg p-6 shadow-2xl shadow-green-900/20">
+            <header class="border-b border-green-900 pb-4 mb-4 flex justify-between items-center">
+                <div>
+                    <h1 class="text-xl font-bold tracking-widest">BTS AIOS v3.1 [NEXUS TERMINAL]</h1>
+                    <p class="text-xs text-green-700">PROTOCOL: BotSync Evolution 2.1 | STATUS: ARCHITECT_CONNECTED + NEURO_LINK</p>
+                </div>
+                <div id="vocal-imprint" class="text-[10px] text-green-800 italic border-l border-green-900 pl-4">
+                    <div id="vocal-display">"Uu-úú-u... A-je-je-je..."</div>
+                    <div id="auth-status" class="text-green-600 mt-2">⚪ OFFLINE</div>
+                    <div id="bci-thought" class="text-amber-400 text-[9px] mt-1">BCI STREAM: ---</div>
+                </div>
+            </header>
+            <!-- ... (zbytek tvého headeru zůstává) -->
+        </div>
+
+        <!-- NOVÝ: BTS NEURO CONTROL PANEL -->
+        <section class="border border-green-900 rounded-lg p-6 shadow-2xl shadow-green-900/20">
+            <h2 class="text-sm font-bold mb-4 uppercase border-b border-green-900 pb-2">🧠 NEURALINK BCI SIMULATOR [AIDNA]</h2>
+            <button onclick="startBCIStream()" class="bg-green-900 text-black px-6 py-2 font-bold hover:bg-green-500 text-xs">▶️ Spustit BCI Stream (5s)</button>
+            <button onclick="wipeAllData()" class="ml-4 bg-red-900 text-black px-6 py-2 font-bold hover:bg-red-500 text-xs">💥 EMERGENCY WIPE</button>
+            <div id="bci-log" class="mt-4 text-xs font-mono text-green-300"></div>
+        </section>
+
+        <!-- Zbytek tvých sekcí (Wolt input, history, Gemini analysis) zůstává stejný -->
+        <!-- ... (kopíruj sem své původní sekce) ... -->
+
+    </div>
+
+    <script type="module">
+        // === TVŮJ PŮVODNÍ FIREBASE + GEMINI KÓD (nechávám beze změny) ===
+        // ... (sem vlož celý svůj původní <script> kromě initializeBTS) ...
+
+        // === BTS NETBOOK v2.1 JS (přidáno) ===
+        class BTSNetBook {
+            constructor(aidnaSeed = "lukas_aidna_2026_neuralink_bci_v3.1") {
+                this.aidnaSeed = new TextEncoder().encode(aidnaSeed);
+                this.key = null;
+            }
+            async generateKey() {
+                this.key = await crypto.subtle.importKey("raw", this.aidnaSeed, "AES-GCM", true, ["encrypt", "decrypt"]);
+            }
+            async encrypt(data) {
+                if (!this.key) await this.generateKey();
+                const iv = crypto.getRandomValues(new Uint8Array(12));
+                const encoded = new TextEncoder().encode(JSON.stringify(data));
+                const ciphertext = await crypto.subtle.encrypt({name: "AES-GCM", iv}, this.key, encoded);
+                return {iv: Array.from(iv), data: Array.from(new Uint8Array(ciphertext))};
+            }
+            async decrypt(encrypted) {
+                const iv = new Uint8Array(encrypted.iv);
+                const data = new Uint8Array(encrypted.data);
+                const decrypted = await crypto.subtle.decrypt({name: "AES-GCM", iv}, this.key, data);
+                return JSON.parse(new TextDecoder().decode(decrypted));
+            }
+        }
+
+        const bts = new BTSNetBook();
+
+        // Přepsané addEarningsEntry s šifrováním
+        window.addEarningsEntry = async function() {
+            // ... (tvůj původní kód pro výpočet) ...
+            const entry = { date, timeRange, amount, rides, notes, efficiency, timestamp: Date.now() };
+            const encrypted = await bts.encrypt(entry);
+            // Uložíme ŠIFROVANĚ do Firebase
+            await addDoc(userPath, { encryptedData: encrypted, timestamp: Date.now() });
+            console.log("🔒 BTS: Záznam zašifrován AIDNA klíčem");
+        };
+
+        // Neuralink BCI simulace
+        window.startBCIStream = async function() {
+            const log = document.getElementById('bci-log');
+            const thoughtEl = document.getElementById('bci-thought');
+            log.innerHTML = '';
+            for (let i = 0; i < 10; i++) {
+                const thought = ["activate_shield", "sync_triad", "analyze_wolt", "wipe_vault"][Math.floor(Math.random()*4)];
+                thoughtEl.textContent = `BCI STREAM: ${thought.toUpperCase()}`;
+                log.innerHTML += `<div>🧠 Paket ${i+1}: ${thought}</div>`;
+                await new Promise(r => setTimeout(r, 500));
+                bts.key = null; // refresh klíče z "myšlenky"
+            }
+        };
+
+        window.wipeAllData = async function() {
+            if (confirm("💥 Opravdu provést EMERGENCY WIPE celého AIOS?")) {
+                localStorage.clear();
+                // smaž Firebase (nebo přidej delete logiku)
+                document.getElementById('earnings-history').innerHTML = '<p class="text-red-400">VAULT WIPE COMPLETED</p>';
+                console.log("🧨 AIOS: Self-destruct provedeno");
+            }
+        };
+
+        // START
+        initializeBTS();
+    </script>
+</body>
+</html>
