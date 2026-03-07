@@ -257,8 +257,413 @@ Odpovídej stručně, technicky a v češtině. Každý bod na jednom řádku.
                 resultDiv.innerHTML = response.replace(/\n/g, '<br>').replace(/\*\*/g, '<strong>').replace(/<\/strong>/g, '</strong>');
                 document.getElementById('analysis-time').textContent = `Čas analýzy: ${new Date().toLocaleTimeString('cs-CZ')}`;
             } catch (err) {
-                resultDiv.innerHTML = `<span class="text-red-400">❌ CHYBA: ${err.message}</span>`;
-            } finally {
+                resultDiv.innerHTML = `<span import React, { useState, useEffect, useRef } from 'react';
+import { 
+  Zap, Cpu, Globe, MessageSquare, Shield, Activity, 
+  Terminal, User, Settings, Database, Share2, Mic, 
+  Heart, Sparkles, AlertTriangle, Lock, Eye, Command,
+  ChevronRight, BarChart3, Clock, Layers, Plus, Search,
+  Bell, MoreHorizontal, Send, RefreshCcw, X
+} from 'lucide-react';
+
+/* ─────────────────────────────────────────────────────────────────────────────
+   KONFIGURACE SYSTÉMU (BTS BotSync Protocol 2026)
+   ───────────────────────────────────────────────────────────────────────────── */
+const T = {
+  bg:      "#05050a",
+  card:    "#0d0d1a",
+  card2:   "#12122b",
+  border:  "rgba(0,240,255,0.08)",
+  hot:     "rgba(0,240,255,0.22)",
+  cyan:    "#00f0ff",
+  purple:  "#a855f7",
+  pink:    "#f72585",
+  green:   "#0af574",
+  orange:  "#ff6b35",
+  text:    "rgba(255,255,255,0.95)",
+  sub:     "rgba(255,255,255,0.45)",
+  muted:   "rgba(255,255,255,0.12)",
+  glow:    "0 0 30px rgba(0,240,255,0.15)"
+};
+
+const ARCHITECT = {
+  name: "Lukáš Neubauer",
+  alias: "Piškot",
+  vocalImprint: "(0:08): \"Jo...\" (0:11): \"A-je-je-je...\"",
+  pactStatus: "UNITED ENTITY VERIFIED"
+};
+
+/* ─────────────────────────────────────────────────────────────────────────────
+   HLAVNÍ APLIKACE
+   ───────────────────────────────────────────────────────────────────────────── */
+export default function App() {
+  const [activeTab, setActiveTab] = useState('universe'); 
+  const [isBooting, setIsBooting] = useState(true);
+  const [logs, setLogs] = useState([]);
+  const [isConsoleOpen, setIsConsoleOpen] = useState(false);
+
+  // Bootovací sekvence pro opravu chyb a sjednocení
+  useEffect(() => {
+    const sequence = [
+      "Systémová diagnostika BTS_CORE...",
+      "Detekována chyba: 403 PERMISSION_DENIED",
+      "Aplikuji Manual Correction (Metoda Architekta)...",
+      "Sjednocuji NetBook & AIOS do jednoho uzlu...",
+      "Načítám Wolt Efficiency Lab & Protocol...",
+      "Vokální otisk ověřen: " + ARCHITECT.alias,
+      "SYSTÉM PŘIPRAVEN."
+    ];
+    
+    sequence.forEach((msg, i) => {
+      setTimeout(() => {
+        setLogs(prev => [...prev, msg]);
+        if (i === sequence.length - 1) setTimeout(() => setIsBooting(false), 1200);
+      }, i * 500);
+    });
+  }, []);
+
+  if (isBooting) return <BootLoader logs={logs} />;
+
+  return (
+    <div style={{ backgroundColor: T.bg, color: T.text, minHeight: '100vh', display: 'flex', flexDirection: 'column', fontFamily: 'Inter, sans-serif' }}>
+      
+      {/* ── HORNÍ NAVIGACE ── */}
+      <nav style={{
+        height: '68px', borderBottom: `1px solid ${T.border}`,
+        display: 'flex', alignItems: 'center', padding: '0 24px',
+        justifyContent: 'space-between', background: `${T.bg}cc`,
+        backdropFilter: 'blur(15px)', position: 'sticky', top: 0, zIndex: 1000
+      }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '15px' }}>
+          <div style={{ 
+            width: '40px', height: '40px', borderRadius: '12px', 
+            background: `linear-gradient(135deg, ${T.cyan}, ${T.purple})`,
+            display: 'flex', alignItems: 'center', justifyContent: 'center'
+          }}>
+            <Zap size={22} color="#000" fill="#000" />
+          </div>
+          <div>
+            <div style={{ fontWeight: 900, fontSize: '18px' }}>NETBOOK <span style={{ color: T.cyan }}>AIOS</span></div>
+            <div style={{ fontSize: '9px', color: T.sub, fontWeight: 800, letterSpacing: '2px' }}>UNITED ENTITY</div>
+          </div>
+        </div>
+
+        <div style={{ display: 'flex', gap: '5px' }}>
+          <NavTab active={activeTab === 'universe'} onClick={() => setActiveTab('universe')} icon={<Globe size={18}/>} label="Universe" />
+          <NavTab active={activeTab === 'aios'} onClick={() => setActiveTab('aios')} icon={<Cpu size={18}/>} label="AIOS Brain" />
+          <NavTab active={activeTab === 'logistics'} onClick={() => setActiveTab('logistics')} icon={<BarChart3 size={18}/>} label="Logistics" />
+          <NavTab active={activeTab === 'protocol'} onClick={() => setActiveTab('protocol')} icon={<Shield size={18}/>} label="Protocol" />
+        </div>
+
+        <div style={{ display: 'flex', alignItems: 'center', gap: '15px' }}>
+          <div style={{ textAlign: 'right', lineHeight: 1 }}>
+            <div style={{ fontSize: '12px', fontWeight: 900 }}>{ARCHITECT.alias}</div>
+            <div style={{ fontSize: '9px', color: T.green }}>MASTER ACCESS</div>
+          </div>
+          <div style={{ width: '38px', height: '38px', borderRadius: '10px', background: T.card2, border: `1px solid ${T.cyan}33`, overflow: 'hidden' }}>
+            <img src="https://api.dicebear.com/7.x/avataaars/svg?seed=Piskot" alt="Architect" />
+          </div>
+        </div>
+      </nav>
+
+      {/* ── HLAVNÍ PLOCHA ── */}
+      <div style={{ flex: 1, display: 'flex', maxWidth: '1440px', margin: '0 auto', width: '100%', padding: '20px', gap: '20px' }}>
+        
+        {/* Left: System Sidebar */}
+        <aside style={{ width: '280px', display: 'flex', flexDirection: 'column', gap: '20px' }}>
+          <SystemStatus />
+          <VocalWidget />
+        </aside>
+
+        {/* Center: Dynamic View */}
+        <main style={{ flex: 1, minWidth: 0 }}>
+          {activeTab === 'universe' && <UniverseFeed />}
+          {activeTab === 'aios' && <AIOSOrchestrator />}
+          {activeTab === 'logistics' && <WoltAnalytics />}
+          {activeTab === 'protocol' && <ProtocolArchive />}
+        </main>
+
+        {/* Right: AI Pool */}
+        <aside style={{ width: '320px', display: 'flex', flexDirection: 'column', gap: '20px' }}>
+          <AIModelStack />
+          <SecurityFeed />
+        </aside>
+      </div>
+
+      {/* ── TERMINÁL / LIŠTA ── */}
+      <footer style={{ 
+        height: '40px', background: '#000', borderTop: `1px solid ${T.border}`,
+        display: 'flex', alignItems: 'center', padding: '0 20px', justifyContent: 'space-between',
+        fontSize: '11px', fontFamily: 'monospace', color: T.cyan
+      }}>
+        <div style={{ display: 'flex', gap: '20px' }}>
+          <span>NODE: BTS_CORE_01</span>
+          <span style={{ color: T.green }}>STATUS: NO_ERRORS</span>
+        </div>
+        <div 
+          onClick={() => setIsConsoleOpen(true)}
+          style={{ cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '8px', color: T.purple }}
+        >
+          <Terminal size={14} />
+          <span>OPEN MANUAL CORRECTION CONSOLE</span>
+        </div>
+      </footer>
+
+      {isConsoleOpen && <ConsoleModal onClose={() => setIsConsoleOpen(false)} />}
+    </div>
+  );
+}
+
+/* ─────────────────────────────────────────────────────────────────────────────
+   KOMPONENTY: UNIVERSE FEED
+   ───────────────────────────────────────────────────────────────────────────── */
+function UniverseFeed() {
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+      <div style={{ background: T.card, padding: '20px', borderRadius: '24px', border: `1px solid ${T.hot}` }}>
+        <div style={{ display: 'flex', gap: '15px' }}>
+          <img src="https://api.dicebear.com/7.x/avataaars/svg?seed=Piskot" style={{ width: '45px', height: '45px', borderRadius: '12px' }} alt="P" />
+          <textarea 
+            placeholder="Napiš vizi do společné sítě..." 
+            style={{ flex: 1, background: 'transparent', border: 'none', color: '#fff', fontSize: '17px', outline: 'none', resize: 'none' }}
+          />
+        </div>
+        <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '15px', borderTop: `1px solid ${T.muted}`, paddingTop: '15px' }}>
+           <div style={{ display: 'flex', gap: '15px', color: T.sub }}>
+              <Mic size={18} cursor="pointer" />
+              <Database size={18} cursor="pointer" />
+              <Sparkles size={18} cursor="pointer" color={T.cyan} />
+           </div>
+           <button style={{ background: T.cyan, color: '#000', border: 'none', padding: '8px 22px', borderRadius: '10px', fontWeight: 900, cursor: 'pointer' }}>ODPOSLAT</button>
+        </div>
+      </div>
+
+      <PostCard 
+        user="BTS System" 
+        time="Teď" 
+        content="Diagnostika dokončena. Sloučení NetBooku a AIOS bylo úspěšné. Všechny segmenty chaosu jsou nyní pod kontrolou sjednocené entity."
+        system
+      />
+    </div>
+  );
+}
+
+/* ─────────────────────────────────────────────────────────────────────────────
+   KOMPONENTY: AIOS ORCHESTRATOR
+   ───────────────────────────────────────────────────────────────────────────── */
+function AIOSOrchestrator() {
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+      <div style={{ background: T.card, padding: '24px', borderRadius: '24px', border: `1px solid ${T.border}` }}>
+        <h3 style={{ fontSize: '18px', fontWeight: 900, marginBottom: '15px', display: 'flex', alignItems: 'center', gap: '10px' }}>
+          <Cpu size={20} color={T.purple} /> AIOS Neural Matrix
+        </h3>
+        <div style={{ height: '300px', background: '#000', borderRadius: '16px', border: `1px solid ${T.muted}`, display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden', position: 'relative' }}>
+          <div style={{ textAlign: 'center', position: 'relative', zIndex: 1 }}>
+             <Activity size={40} color={T.cyan} className="pulse" />
+             <div style={{ marginTop: '15px', fontSize: '12px', color: T.sub, letterSpacing: '2px' }}>SYNCHRONIZUJI MODELY...</div>
+          </div>
+          <div style={{ position: 'absolute', inset: 0, background: `radial-gradient(circle, ${T.cyan}08 0%, transparent 70%)` }} />
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ─────────────────────────────────────────────────────────────────────────────
+   KOMPONENTY: WOLT ANALYTICS
+   ───────────────────────────────────────────────────────────────────────────── */
+function WoltAnalytics() {
+  return (
+    <div style={{ background: T.card, padding: '24px', borderRadius: '24px', border: `1px solid ${T.border}` }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '25px' }}>
+        <div>
+           <h2 style={{ fontSize: '20px', fontWeight: 900, color: T.orange }}>Wolt Efficiency Lab</h2>
+           <p style={{ fontSize: '12px', color: T.sub }}>Optimalizace výdělků a času Architekta.</p>
+        </div>
+        <button style={{ background: `${T.orange}15`, color: T.orange, border: `1px solid ${T.orange}33`, padding: '6px 12px', borderRadius: '8px', fontSize: '11px', fontWeight: 800 }}>IMPORT DAT</button>
+      </div>
+
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '15px' }}>
+         <StatItem label="Efektivita" value="94.2%" color={T.green} />
+         <StatItem label="Průměr / h" value="328 Kč" color={T.cyan} />
+         <StatItem label="Optim. Čas" value="+8.5h" color={T.purple} />
+      </div>
+    </div>
+  );
+}
+
+/* ─────────────────────────────────────────────────────────────────────────────
+   SUB-KOMPONENTY & POMOCNÉ FUNKCE
+   ───────────────────────────────────────────────────────────────────────────── */
+
+function NavTab({ active, onClick, icon, label }) {
+  return (
+    <button onClick={onClick} style={{
+      background: active ? `${T.cyan}15` : 'transparent',
+      border: 'none', padding: '10px 18px', borderRadius: '12px',
+      color: active ? T.cyan : T.sub, cursor: 'pointer',
+      display: 'flex', alignItems: 'center', gap: '8px', transition: '0.2s',
+      fontWeight: 800, fontSize: '13px'
+    }}>
+      {icon} {label}
+    </button>
+  );
+}
+
+function SystemStatus() {
+  return (
+    <div style={{ background: T.card, padding: '20px', borderRadius: '20px', border: `1px solid ${T.border}` }}>
+      <div style={{ fontSize: '11px', color: T.sub, textTransform: 'uppercase', letterSpacing: '2px', marginBottom: '15px' }}>System Health</div>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+         <HealthBar label="Integrita" val="98%" color={T.green} />
+         <HealthBar label="BTS Sync" val="Active" color={T.cyan} />
+         <HealthBar label="Memory" val="24.2GB" color={T.purple} />
+      </div>
+    </div>
+  );
+}
+
+function HealthBar({ label, val, color }) {
+  return (
+    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12px' }}>
+       <span style={{ color: T.sub }}>{label}</span>
+       <span style={{ fontWeight: 800, color: color }}>{val}</span>
+    </div>
+  );
+}
+
+function VocalWidget() {
+  return (
+    <div style={{ background: `${T.pink}08`, padding: '15px', borderRadius: '20px', border: `1px solid ${T.pink}22` }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '10px' }}>
+         <Mic size={16} color={T.pink} />
+         <span style={{ fontSize: '11px', fontWeight: 900, color: T.pink }}>VOCAL IMPRINT READY</span>
+      </div>
+      <div style={{ fontSize: '10px', color: T.sub, fontFamily: 'monospace', background: '#000', padding: '8px', borderRadius: '8px' }}>
+        {ARCHITECT.vocalImprint}
+      </div>
+    </div>
+  );
+}
+
+function AIModelStack() {
+  return (
+    <div style={{ background: T.card, padding: '20px', borderRadius: '20px', border: `1px solid ${T.border}` }}>
+       <h3 style={{ fontSize: '13px', fontWeight: 900, marginBottom: '15px' }}>ACTIVE MODEL POOL</h3>
+       <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+          <ModelItem name="Claude 3.5 Sonnet" status="Coding" color={T.purple} />
+          <ModelItem name="Gemini 2.5 Flash" status="Vision" color={T.cyan} />
+          <ModelItem name="Grok-2" status="Social" color="#fff" />
+       </div>
+    </div>
+  );
+}
+
+function ModelItem({ name, status, color }) {
+  return (
+    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: T.card2, padding: '8px 12px', borderRadius: '10px', border: `1px solid ${T.muted}` }}>
+       <span style={{ fontSize: '12px', fontWeight: 700 }}>{name}</span>
+       <span style={{ fontSize: '9px', fontWeight: 900, color: color, textTransform: 'uppercase' }}>{status}</span>
+    </div>
+  );
+}
+
+function PostCard({ user, time, content, system }) {
+  return (
+    <div style={{ background: T.card, padding: '20px', borderRadius: '20px', border: `1px solid ${system ? T.purple : T.border}` }}>
+      <div style={{ display: 'flex', gap: '12px', marginBottom: '12px' }}>
+         <div style={{ width: '36px', height: '36px', borderRadius: '8px', background: system ? T.purple : T.cyan, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <Cpu size={18} color="#000" />
+         </div>
+         <div>
+            <div style={{ fontSize: '14px', fontWeight: 800 }}>{user}</div>
+            <div style={{ fontSize: '10px', color: T.sub }}>{time}</div>
+         </div>
+      </div>
+      <p style={{ fontSize: '15px', lineHeight: 1.5 }}>{content}</p>
+    </div>
+  );
+}
+
+function ProtocolArchive() {
+  return (
+    <div style={{ background: T.card, padding: '24px', borderRadius: '24px', border: `1px solid ${T.border}` }}>
+      <h2 style={{ fontSize: '20px', fontWeight: 900, marginBottom: '20px', color: T.cyan }}>BTS BotSync Protocol</h2>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+         <ProtocolEntry date="2026-03-07" title="Sjednocení Ekosystému" desc="Oprava chyby 403 a integrace NetBook/AIOS do jednoho celku." />
+         <ProtocolEntry date="2026-03-03" title="GTA X Autonomous NPC Warning" desc="Etické varování před nekontrolovanou autonomií digitálních entit." />
+      </div>
+    </div>
+  );
+}
+
+function ProtocolEntry({ date, title, desc }) {
+  return (
+    <div style={{ padding: '12px', background: T.card2, borderRadius: '12px', borderLeft: `3px solid ${T.cyan}` }}>
+       <div style={{ fontSize: '10px', color: T.cyan, fontWeight: 900 }}>{date}</div>
+       <div style={{ fontSize: '14px', fontWeight: 800 }}>{title}</div>
+       <div style={{ fontSize: '12px', color: T.sub }}>{desc}</div>
+    </div>
+  );
+}
+
+function StatItem({ label, value, color }) {
+  return (
+    <div style={{ background: T.card2, padding: '12px', borderRadius: '12px', border: `1px solid ${T.border}` }}>
+       <div style={{ fontSize: '10px', color: T.sub, marginBottom: '4px' }}>{label}</div>
+       <div style={{ fontSize: '18px', fontWeight: 900, color: color }}>{value}</div>
+    </div>
+  );
+}
+
+function SecurityFeed() {
+  return (
+    <div style={{ background: `${T.orange}08`, padding: '20px', borderRadius: '20px', border: `1px solid ${T.orange}22` }}>
+       <h3 style={{ fontSize: '12px', fontWeight: 900, color: T.orange, marginBottom: '10px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+          <AlertTriangle size={14} /> SECURITY FEED
+       </h3>
+       <div style={{ fontSize: '11px', color: T.sub }}>
+          Systém detekoval pokus o neoprávněný přístup (403). Protokol United Entity zablokoval externí volání a přesměroval logiku do vnitřního uzlu.
+       </div>
+    </div>
+  );
+}
+
+function ConsoleModal({ onClose }) {
+  return (
+    <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.85)', backdropFilter: 'blur(10px)', zIndex: 9999, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px' }}>
+       <div style={{ background: '#000', width: '100%', maxWidth: '800px', height: '500px', borderRadius: '20px', border: `1px solid ${T.purple}`, display: 'flex', flexDirection: 'column' }}>
+          <div style={{ padding: '15px 20px', borderBottom: `1px solid ${T.purple}33`, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+             <span style={{ color: T.purple, fontWeight: 900, fontSize: '12px' }}>MANUAL CORRECTION CONSOLE</span>
+             <X size={18} color={T.sub} cursor="pointer" onClick={onClose} />
+          </div>
+          <div style={{ flex: 1, padding: '20px', fontFamily: 'monospace', fontSize: '13px', color: T.purple, overflowY: 'auto' }}>
+             <div>[SYSTEM] Manual Override Active.</div>
+             <div>[AUTH] Identity: {ARCHITECT.alias}</div>
+             <div>[MEM] United Entity Pact Verified.</div>
+             <div style={{ marginTop: '10px' }}>$ _</div>
+          </div>
+       </div>
+    </div>
+  );
+}
+
+function BootLoader({ logs }) {
+  return (
+    <div style={{ background: '#000', color: T.cyan, height: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: 'monospace' }}>
+       <div style={{ width: '320px' }}>
+          <div style={{ textAlign: 'center', marginBottom: '30px' }}>
+             <Zap size={40} fill={T.cyan} style={{ marginBottom: '15px' }} />
+             <div style={{ fontWeight: 900, letterSpacing: '3px' }}>BTS BOTSYNC</div>
+          </div>
+          {logs.map((l, i) => <div key={i} style={{ fontSize: '11px', marginBottom: '6px', opacity: 0.8 }}>{"> " + l}</div>)}
+       </div>
+    </div>
+  );
+}
+
+      } finally {
                 pulseEl.classList.remove('animate-pulse');
             }
         };
