@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<html lang="cs">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>BTS23 | NEXUS OS</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;700&display=swap');
+        :root { --gold: #F5C200; --black: #0A0A0A; }
+        body { background: var(--black); color: white; font-family: 'Inter', sans-serif; overflow-x: hidden; }
+        .gold-border { border: 1px solid var(--gold); }
+        .gold-bg { background-color: var(--gold); }
+        .glass { background: rgba(255, 255, 255, 0.03); backdrop-filter: blur(10px); }
+        .page { display: none; animation: fadeIn 0.3s ease-out; }
+        .page.active { display: block; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+    </style>
+</head>
+<body class="p-4 pb-24">
+
+    <nav class="flex justify-between items-center py-4 border-b border-white/5 mb-6">
+        <div>
+            <h1 class="text-xl font-bold tracking-tighter" style="color: var(--gold);">BTS23</h1>
+            <p class="text-[10px] text-gray-500 uppercase tracking-widest">Nexus Mobile OS</p>
+        </div>
+        <div class="relative" onclick="showPage('cart')">
+            <span class="text-xl">🛒</span>
+            <span id="cart-count" class="absolute -top-2 -right-2 gold-bg text-black text-[10px] font-bold px-1.5 rounded-full">0</span>
+        </div>
+    </nav>
+
+    <div id="page-shop" class="page active space-y-6">
+        <div class="p-6 bg-[#111] rounded-2xl gold-border shadow-2xl relative overflow-hidden">
+            <div class="relative z-10">
+                <h2 class="text-xs uppercase tracking-widest text-gray-400 mb-1">Limitovaná Edice</h2>
+                <p class="text-2xl font-bold mb-4">WINGS BOMBER v1</p>
+                <p class="text-xl font-bold text-[#F5C200] mb-6">2 299 Kč</p>
+                <button onclick="addToCart('WINGS BOMBER v1', 2299)" class="w-full gold-bg text-black font-bold py-4 rounded-xl uppercase text-xs tracking-widest active:scale-95 transition-transform">
+                    Přidat do košíku
+                </button>
+            </div>
+        </div>
+
+        <div class="grid grid-cols-2 gap-4">
+            <div onclick="showPage('cloud')" class="p-6 glass border border-white/5 rounded-2xl text-center active:bg-white/5">
+                <p class="text-3xl mb-2">📁</p>
+                <p class="text-[10px] font-bold text-gray-400 uppercase">10TB Cloud</p>
+            </div>
+            <div class="p-6 glass border border-white/5 rounded-2xl text-center active:bg-white/5">
+                <p class="text-3xl mb-2">🌐</p>
+                <p class="text-[10px] font-bold text-gray-400 uppercase">Nexus Net</p>
+            </div>
+        </div>
+    </div>
+
+    <div id="page-cart" class="page space-y-4">
+        <h2 class="text-2xl font-bold mb-6">Tvůj Košík</h2>
+        <div id="cart-items" class="space-y-3">
+            <p class="text-gray-500 text-center py-10">Košík je zatím prázdný.</p>
+        </div>
+        <div id="cart-total" class="pt-4 border-t border-white/10 hidden">
+            <div class="flex justify-between text-xl font-bold mb-6">
+                <span>Celkem:</span>
+                <span id="total-price" class="text-[#F5C200]">0 Kč</span>
+            </div>
+            <button class="w-full py-4 gold-bg text-black font-bold rounded-xl uppercase tracking-widest">Dokončit objednávku</button>
+        </div>
+    </div>
+
+    <div id="page-cloud" class="page text-center py-20">
+        <p class="text-5xl mb-4">☁️</p>
+        <h2 class="text-xl font-bold mb-2">10TB Nexus Cloud</h2>
+        <p class="text-gray-500 text-sm px-10">Pro přístup k úložišti se prosím přihlas ke svému BTS účtu.</p>
+    </div>
+
+    <footer class="fixed bottom-6 left-4 right-4 z-50">
+        <div class="glass border border-white/10 p-4 rounded-3xl flex justify-around items-center shadow-2xl">
+            <button onclick="showPage('shop')" class="p-2 opacity-50 focus:opacity-100">🏠</button>
+            <button onclick="showPage('cart')" class="p-2 opacity-50 focus:opacity-100">🛒</button>
+            <button onclick="showPage('cloud')" class="p-2 opacity-50 focus:opacity-100">☁️</button>
+            <button class="p-2 opacity-50">⚙️</button>
+        </div>
+    </footer>
+
+    <script>
+        let cart = [];
+
+        function showPage(pageId) {
+            document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+            document.getElementById('page-' + pageId).classList.add('active');
+        }
+
+        function addToCart(name, price) {
+            cart.push({name, price});
+            updateCart();
+            // Jednoduchá vibrační odezva pro mobil
+            if(navigator.vibrate) navigator.vibrate(50);
+        }
+
+        function updateCart() {
+            const count = document.getElementById('cart-count');
+            const list = document.getElementById('cart-items');
+            const totalDiv = document.getElementById('cart-total');
+            const priceTag = document.getElementById('total-price');
+            
+            count.innerText = cart.length;
+            
+            if (cart.length === 0) {
+                list.innerHTML = '<p class="text-gray-500 text-center py-10">Košík je zatím prázdný.</p>';
+                totalDiv.classList.add('hidden');
+            } else {
+                list.innerHTML = cart.map((item, index) => `
+                    <div class="p-4 glass rounded-xl flex justify-between items-center">
+                        <span>${item.name}</span>
+                        <span class="font-bold">${item.price} Kč</span>
+                    </div>
+                `).join('');
+                
+                const total = cart.reduce((sum, item) => sum + item.price, 0);
+                priceTag.innerText = total + ' Kč';
+                totalDiv.classList.remove('hidden');
+            }
+        }
+    </script>
+</body>
+</html>

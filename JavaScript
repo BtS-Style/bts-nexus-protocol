@@ -1,0 +1,249 @@
+// BTS AIOS v3.1 [MOBILE NODE] - plný BTSNetBook integrován
+// AIDNA PROTECTED | BCI READY
+
+var lay, title, statusText, logView, bciBtn, woltBtn, wipeBtn;
+var btsNetBook; // náš hlavní engine
+
+// === BTS NETBOOK CLASS (AIDNA + AES-GCM + BCI) ===
+function BTSNetBook() {
+    this.aidnaSeed = "lukas_aidna_2026_neuralink_bci_v3.1_mobile";
+    this.key = null;
+}
+
+BTSNetBook.prototype.generateKey = async function() {
+    // Simulace AIDNA neuro-klíče (v reálu by šel z BCI)
+    this.key = this.aidnaSeed; // v produkci použijeme CryptoJS nebo Java AES
+    log("🔑 AIDNA klíč vygenerován z neuro-imprintu");
+};
+
+BTSNetBook.prototype.encrypt = async function(data) {
+    await this.generateKey();
+    // Jednoduchá simulace šifrování (pro DroidScript – v reálu nahraď CryptoJS)
+    var encrypted = btoa(JSON.stringify(data) + this.key); // placeholder – později plný AES
+    log("🔒 Data zašifrována AIDNA klíčem");
+    return encrypted;
+};
+
+BTSNetBook.prototype.decrypt = async function(encrypted) {
+    log("🔓 Dešifrování AIDNA dat...");
+    return JSON.parse(atob(encrypted).replace(this.key, ""));
+};
+
+// BCI simulace
+BTSNetBook.prototype.startBCIStream = function() {
+    log("🧠 Spouštím Neuralink BCI stream...");
+    var thoughts = ["activate_shield", "sync_triad", "analyze_wolt", "wipe_vault", "adapt_2027"];
+    for (let i = 0; i < 8; i++) {
+        var thought = thoughts[Math.floor(Math.random() * thoughts.length)];
+        log("   🧠 BCI Paket " + (i+1) + ": " + thought.toUpperCase());
+        app.Wait(400);
+    }
+    log("✅ BCI stream dokončen – klíč refreshován");
+};
+
+// === UI + tlačítka ===
+function OnStart() {
+    lay = app.CreateLayout("Linear", "VCenter,FillXY");
+    lay.SetBackColor("#000000");
+
+    title = app.CreateText("BTS AIOS v3.1 [MOBILE NODE]", 1, 0.08, "Bold");
+    title.SetTextColor("#00FF00");
+    lay.AddChild(title);
+
+    statusText = app.CreateText("STATUS: AIDNA PROTECTED | BCI: READY", 1, 0.05);
+    statusText.SetTextColor("#00FF00");
+    lay.AddChild(statusText);
+
+    logView = app.CreateText("", 0.95, 0.35, "Left,Monospace");
+    logView.SetTextColor("#00FF00");
+    logView.SetBackColor("#001100");
+    logView.SetPadding(0.02, 0.02, 0.02, 0.02);
+    lay.AddChild(logView);
+
+    // Tlačítka přesně jako na screenshotu
+    bciBtn = app.CreateButton("SPUSTIT BCI STREAM", 0.9, 0.1);
+    bciBtn.SetBackColor("#00FF00");
+    bciBtn.SetTextColor("#000000");
+    bciBtn.SetOnTouch(startBCI);
+    lay.AddChild(bciBtn);
+
+    woltBtn = app.CreateButton("WOLT SYNC (ENCRYPTED)", 0.9, 0.1);
+    woltBtn.SetBackColor("#00CC00");
+    woltBtn.SetTextColor("#000000");
+    woltBtn.SetOnTouch(woltEncryptedSync);
+    lay.AddChild(woltBtn);
+
+    wipeBtn = app.CreateButton("EMERGENCY WIPE", 0.9, 0.1);
+    wipeBtn.SetBackColor("#FF0000");
+    wipeBtn.SetTextColor("#FFFFFF");
+    wipeBtn.SetOnTouch(emergencyWipe);
+    lay.AddChild(wipeBtn);
+
+    app.AddLayout(lay);
+
+    btsNetBook = new BTSNetBook();
+    log("[12:25:01] >> AIOS Jádro aktivní. Čekám na signál Architekta.");
+    log("[12:25:01] >> Inicializace BTS Jádra...");
+}
+
+// === Funkce tlačítek ===
+function log(text) {
+    var current = logView.GetText();
+    logView.SetText(current + text + "\n");
+    logView.ScrollToBottom();
+}
+
+function startBCI() {
+    btsNetBook.startBCIStream();
+}
+
+async function woltEncryptedSync() {
+    log("📡 Spouštím WOLT SYNC (ENCRYPTED)...");
+    var sampleData = { date: "2026-03-04", amount: 1450, rides: 22, efficiency: 210.5 };
+    var encrypted = await btsNetBook.encrypt(sampleData);
+    log("✅ Wolt data zašifrována a připravena k syncu");
+    // tady můžeš přidat Firebase volání později
+}
+
+function emergencyWipe() {
+    if (app.Alert("💥 Opravdu provést EMERGENCY WIPE celého AIOS?", "VAROVÁNÍ")) {
+        logView.SetText("");
+        log("🧨 EMERGENCY WIPE PROVEDEN – vše smazáno");
+        log("AIDNA imprint resetován. Restartuji jádro...");
+    }
+}
+// =============================================
+// BTS AIOS v3.1 [MOBILE NODE] - JEDEN SOUBOR
+// VŠECHNO PROPOJENO: AIDNA + BTSNetBook + BCI + Wolt + Wipe
+// =============================================
+
+var lay, title, statusTxt, logView;
+var core; // centrální AIOS jádro
+
+// ==================== CENTRÁLNÍ JÁDRO ====================
+function AIOSCore() {
+    this.aidnaImprint = "lukas_aidna_2026_neuralink_bci_v3.1_mobile_node";
+    this.encryptedVault = [];   // všechny šifrované data
+    this.bciActive = false;
+}
+
+AIOSCore.prototype.log = function(msg) {
+    var current = logView.GetText();
+    var time = new Date().toLocaleTimeString('cs-CZ', {hour12:false});
+    logView.SetText(current + "[" + time + "] >> " + msg + "\n");
+    logView.ScrollToBottom();
+};
+
+AIOSCore.prototype.refreshKeyFromBCI = function() {
+    this.aidnaImprint = this.aidnaImprint + "_" + Math.random().toString(36).substring(2,8);
+    this.log("🔄 AIDNA klíč refreshován z BCI streamu");
+};
+
+AIOSCore.prototype.encrypt = function(data) {
+    // Jednoduchá, ale funkční simulace (později CryptoJS AES-GCM)
+    var json = JSON.stringify(data);
+    var encrypted = btoa(json + this.aidnaImprint);
+    this.encryptedVault.push(encrypted);
+    this.log("🔒 Data zašifrována AIDNA klíčem a uložena do vaultu");
+    return encrypted;
+};
+
+AIOSCore.prototype.decryptLast = function() {
+    if (this.encryptedVault.length === 0) return "Žádná data";
+    var last = this.encryptedVault[this.encryptedVault.length-1];
+    var decrypted = atob(last).replace(this.aidnaImprint, "");
+    this.log("🔓 Dešifrováno poslední záznam");
+    return JSON.parse(decrypted);
+};
+
+// ==================== UI ====================
+function OnStart() {
+    lay = app.CreateLayout("Linear", "VCenter,FillXY");
+    lay.SetBackColor("#000000");
+
+    title = app.CreateText("BTS AIOS v3.1 [MOBILE NODE]", 1, 0.08, "Bold");
+    title.SetTextColor("#00FF00");
+    lay.AddChild(title);
+
+    statusTxt = app.CreateText("STATUS: AIDNA PROTECTED | BCI: READY", 1, 0.05);
+    statusTxt.SetTextColor("#00FF00");
+    lay.AddChild(statusTxt);
+
+    logView = app.CreateText("", 0.95, 0.38, "Left,Monospace");
+    logView.SetTextColor("#00FF00");
+    logView.SetBackColor("#001100");
+    logView.SetPadding(0.02, 0.02, 0.02, 0.02);
+    lay.AddChild(logView);
+
+    // Tlačítka přesně jako na screenshotu
+    var bciBtn = app.CreateButton("SPUSTIT BCI STREAM", 0.9, 0.12);
+    bciBtn.SetBackColor("#00FF00");
+    bciBtn.SetTextColor("#000000");
+    bciBtn.SetOnTouch(startBCIStream);
+    lay.AddChild(bciBtn);
+
+    var woltBtn = app.CreateButton("WOLT SYNC (ENCRYPTED)", 0.9, 0.12);
+    woltBtn.SetBackColor("#00CC00");
+    woltBtn.SetTextColor("#000000");
+    woltBtn.SetOnTouch(woltEncryptedSync);
+    lay.AddChild(woltBtn);
+
+    var wipeBtn = app.CreateButton("EMERGENCY WIPE", 0.9, 0.12);
+    wipeBtn.SetBackColor("#FF0000");
+    wipeBtn.SetTextColor("#FFFFFF");
+    wipeBtn.SetOnTouch(emergencyWipe);
+    lay.AddChild(wipeBtn);
+
+    app.AddLayout(lay);
+
+    core = new AIOSCore();
+    core.log("AIOS Jádro aktivní. Čekám na signál Architekta.");
+    core.log("Inicializace BTS Jádra...");
+    core.log("VŠECHNY MODULY PROPOJENY (NetBook + BCI + Vault)");
+}
+
+// ==================== PROPOJENÉ FUNKCE ====================
+function startBCIStream() {
+    core.bciActive = true;
+    core.log("🧠 Spouštím Neuralink BCI stream (8 paketů)...");
+    var thoughts = ["activate_shield", "sync_triad", "analyze_wolt", "wipe_vault", "adapt_2027", "refresh_key"];
+    for (let i = 0; i < 8; i++) {
+        var thought = thoughts[Math.floor(Math.random()*thoughts.length)];
+        core.log("   🧠 BCI Paket " + (i+1) + ": " + thought.toUpperCase());
+        app.Wait(450);
+        if (i % 3 === 0) core.refreshKeyFromBCI();
+    }
+    core.log("✅ BCI stream dokončen – všechny moduly synchronizovány");
+}
+
+async function woltEncryptedSync() {
+    core.log("📡 WOLT SYNC spuštěn – připravuji data...");
+    var sampleWolt = {
+        date: "2026-03-04",
+        time: "14:00-18:30",
+        amount: 1680,
+        rides: 24,
+        efficiency: 240.0,
+        notes: "Dobrý den, žádné problémy"
+    };
+    var encrypted = core.encrypt(sampleWolt);
+    
+    // Zde můžeš později přidat Firebase – teď je to plně propojené s NetBookem
+    core.log("📤 Šifrovaná data připravena k odeslání (Firebase ready)");
+    
+    // Ukázka dešifrování (jen pro test spojení)
+    app.Wait(800);
+    var testDecrypt = core.decryptLast();
+    core.log("🔍 Test dešifrování: " + testDecrypt.amount + " Kč");
+}
+
+function emergencyWipe() {
+    if (app.Alert("💥 Opravdu provést EMERGENCY WIPE celého AIOS?", "POSLEDNÍ VAROVÁNÍ")) {
+        core.encryptedVault = [];
+        logView.SetText("");
+        core.log("🧨 EMERGENCY WIPE PROVEDEN");
+        core.log("AIDNA imprint resetován. Restartuji celý Node...");
+        app.Wait(1200);
+        core.log("AIOS Jádro restartováno – vše propojeno znovu");
+    }
+}
