@@ -4,10 +4,22 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>BTS AIOS v3.0 - Nexus Terminal</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>BTS Network | Nexus</title>
+    <!-- Vercel Web Analytics -->
+    <script>
+        window.va = window.va || function () { (window.vaq = window.vaq || []).push(arguments); };
+    </script>
+    <script defer src="/_vercel/insights/script.js"></script>
+    <!-- Tailwind CSS pro moderní UI -->
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://www.gstatic.com/firebasejs/11.1.0/firebase-app.js"></script>
     <script src="https://www.gstatic.com/firebasejs/11.1.0/firebase-auth.js"></script>
     <script src="https://www.gstatic.com/firebasejs/11.1.0/firebase-firestore.js"></script>
+    <script>
+        window.va = window.va || function () { (window.vaq = window.vaq || []).push(arguments); };
+    </script>
+    <script defer src="/_vercel/insights/script.js"></script>
 </head>
 <body class="bg-black text-green-500 font-mono min-h-screen p-4">
     <div class="max-w-6xl mx-auto space-y-6">
@@ -1723,7 +1735,7 @@ Odpovídej stručně, technicky a v češtině. Každý bod na jednom řádku.
             if (!confirm("💥 Opravdu provést EMERGENCY WIPE celého AIOS?")) return;
             localStorage.clear();
             document.getElementById('earnings-history').innerHTML = '<p class="text-red-400">VAULT WIPE COMPLETED – vše smazáno</p>';
-            console.log("🧨 AIOS: Self-destruct provedeno");
+            console.log("��� AIOS: Self-destruct provedeno");
         };
 
         window.logError = function(msg) {
