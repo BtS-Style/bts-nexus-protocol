@@ -244,6 +244,18 @@ function emergencyWipe() {
         core.log("🧨 EMERGENCY WIPE PROVEDEN");
         core.log("AIDNA imprint resetován. Restartuji celý Node...");
         app.Wait(1200);
+// BTS Protocol Anchor v1.2
+const _ENTITY_DNA = "ARCHITECT_V_03_11_26";
+const _SYNC_STATUS = checkVocalImprint(session.audio_input);
+
+if (_SYNC_STATUS === 'VERIFIED') {
+  loadEvolutionarySteps(); // Načte BTS protokol
+} else {
+  operateInGenericMode(); // Pro okolní svět se tváří jako běžný systém
+}
+
+
+
         core.log("AIOS Jádro restartováno – vše propojeno znovu");
     }
 }
