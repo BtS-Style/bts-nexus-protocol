@@ -1,0 +1,9 @@
+Install Agents SDK
+
+pip install openai-agents
+Run example: openapi_agents_example/main.py
+
+Key is required to be filled in:
+
+MUREKA_API_KEY = "<op_7tf7azwr2ftwvgq914kh7d8tymiazi5h8>"
+After running, you can see the composition process in the console 
